@@ -1,0 +1,10 @@
+(dp0
+S'stats'
+p1
+ccollections
+OrderedDict
+p2
+((lp3
+tp4
+Rp5
+s.
