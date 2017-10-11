@@ -49,13 +49,13 @@ Assuming that $p = \frac{k}{n}$, then we can see that:
   \sigma^2_{\hat{p}} &= \frac{np(1-p)}{n^2} = \frac{p(1-p)}{n}
 \end{align*}
 
-where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections betweeb community $C_l$ and $C_m$ can be modelled:
+where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections betweeb community $C_l$ and $C_m$ can be modelled iid:
 
 \begin{align*}
   \hat{B}_{lm} &= \mathcal{N}(\mu_{lm}, \sigma_{lm})
 \end{align*}
 
-where $\hat{\mu}_{lm} = \sum_{(i, j) \in E(C_l \times C_m)} A_{ij}$, and $\hat{\sigma}^2_{k} = \frac{\hat{\mu}_{l}(1 - \hat{\mu}_{l})}{\left|C_l \times C_m\right|}$.
+where $\hat{\mu}_{lm} = \frac{1}{\left|C_l \times C_m\right|}sum_{(i, j) \in E(C_l \times C_m)} A_{ij}$, and $\hat{\sigma}^2_{lm} = \frac{\hat{\mu}_{lm}(1 - \hat{\mu}_{lm})}{\left|C_l \times C_m\right|}$.
 
 Grouping our vertices into the left and right hemispheres, under the above model we end up with:
 
@@ -201,17 +201,81 @@ Compute_Power(n, means, sds, sig=.95):
 Here, we will verify that our estimators of $\hat{p}$ are correct, that is, that we can accurately estimate $\mu_{\hat{p}}$ and $\sigma^2_{\hat{p}}$ given binomially distributed edges:
 
 ```{r}
+# package dependencies -------------------
 require(ggplot2)
 library(latex2exp)
+require(igraph)
+require(fmriutils)
+
+# Util functions ------------------------
+# variance under the given model with params probability p, and number of edges n
 model.var = function(p, n) {
   p*(1 - p)/n
 }
+
+# compute the mu and sigma params associated with an input array under the model
 model.params = function(dat) {
   mu = sum(dat)/length(dat)
   var = model.var(mu)
   return(list(mu = mu, sigma = sqrt(var)))
 }
 
+# accepts a [n x n] adjacency matrix and computes the probabilities associated with an SBM
+# where the vertices are grouped such that union_i(groups) = V(A) and
+# intersection(group_i, group_j) = NULL for all i != j
+block_data = function(matrix, groups) {
+  # matrix is adwi_thresh n x n array
+  # groups is a grouping of the vertices in the matrix as a list
+  blocks = array(NaN, dim=c(2,2))
+  for (i in 1:length(groups)) {
+    for (j in 1:length(groups)) {
+      blocks[i, j] = mean(matrix[groups[[i]], groups[[j]]])
+    }
+  }
+  return(blocks)
+}
+
+# computes the analytical welch t-test given mu and the number of observations
+# and the number of samples. Optionally accepts params for the degrees of freedom
+# to override the default computation.
+ana.welch_ttest = function(u1, u2, ne1, ne2, ns1=NaN, ns2=NaN, df=NaN, verbose=TRUE) {
+  s1 = sqrt(model.var(p=u1, n=ne1))
+  s2 = sqrt(model.var(p=u2, n=ne2))
+  tstat = (u1 - u2)/sqrt(s1^2/ns1 + s2^2/ns2)
+  if (!is.nan(df)) {
+    df = df
+  } else {
+    dfnum = (s1^2/ns1 + s2^2/ns2)^2
+    dfdenom = s1^4/(ns1^2*(ns1 - 1)) + s2^4/(ns2^2*(ns2-1))
+    df = round(dfnum/dfdenom)
+  }
+  p = 1 - pt(tstat, df=df)
+  return(list(t=tstat, p=p, df=df))
+}
+
+# computes the power of the model under a given significance level
+# accepts params for a number of simulations to average power over, and a
+# number of graphs for each computation
+# number of edges defines the number of edges to use in the binomial simulation
+t.power = function(means, ne=1225, sig=.95, nsim=100, ngr=100) {
+  ucut = qt(sig, df=ngr)  # t-statistic of null at the given significance level with ne-2 degrees of freedom
+  ts = replicate(nsim, {  # replicate our described test n tsim times
+    alt = replicate(ngr, sum(rbinom(n = ne, size=1, prob = means[1]))/ne)
+    null = replicate(ngr, sum(rbinom(n = ne, size=1, prob = means[2]))/ne)
+    t.test(alt, null, alternative = "greater", var.equal = FALSE)$statistic
+  })
+  ana_tstat = ana.welch_ttest(means[1], means[2], ne, ne, ngr, ngr)$t
+  return(list(power=sum(ts > ucut)/nsim, diff=abs(mean(ts) - ana_tstat)/ana_tstat))
+}
+
+# accepts a matrix and thresholds/binarizes it
+thresh_matrix = function(matrix, thresh=0.5) {
+  thr = quantile(matrix, thresh)
+  return(ifelse(matrix > thr, 1, 0))
+}
+```
+
+```{r}
 ns = round(10^seq(1, log10(1225), length=10))
 ps = seq(0, 1, length=11)
 ndat = length(ns)*length(ps)
@@ -268,32 +332,6 @@ In this experiment, we will analyze the power of our test developed. Assuming th
 + compute the difference between the average simulated test statistic and the analytical test statistic.
 
 ```{r}
-ana.welch_ttest = function(u1, u2, ne1, ne2, ns1=NaN, ns2=NaN, df=NaN, verbose=TRUE) {
-  s1 = sqrt(model.var(p=u1, n=ne1))
-  s2 = sqrt(model.var(p=u2, n=ne2))
-  tstat = (u1 - u2)/sqrt(s1^2/ns1 + s2^2/ns2)
-  if (!is.nan(df)) {
-    df = df
-  } else {
-    dfnum = (s1^2/ns1 + s2^2/ns2)^2
-    dfdenom = s1^4/(ns1^2*(ns1 - 1)) + s2^4/(ns2^2*(ns2-1))
-    df = round(dfnum/dfdenom)
-  }
-  p = 1 - pt(tstat, df=df)
-  return(list(t=tstat, p=p, df=df))
-}
-
-t.power = function(means, ne=1225, sig=.95, nsim=100, ngr=100) {
-  ucut = qt(sig, df=ngr)  # t-statistic of null at the given significance level with ne-2 degrees of freedom
-  ts = replicate(nsim, {  # replicate our described test n tsim times
-    alt = replicate(ngr, sum(rbinom(n = ne, size=1, prob = means[1]))/ne)
-    null = replicate(ngr, sum(rbinom(n = ne, size=1, prob = means[2]))/ne)
-    t.test(alt, null, alternative = "greater", var.equal = FALSE)$statistic
-  })
-  ana_tstat = ana.welch_ttest(means[1], means[2], ne, ne, ngr, ngr)$t
-  return(list(power=sum(ts > ucut)/nsim, diff=abs(mean(ts) - ana_tstat)/ana_tstat))
-}
-
 p = 0.5
 diff = seq(0,  0.1, length=21)
 ns = round(10^seq(1, log10(1225), length=10))
@@ -351,14 +389,6 @@ ggplot(dat, aes(x = diff, y = tdiff, group=ns, color=ns)) +
 For the data, we compute the weighted mean functional (rank of each edge) and diffusion (number of fibers). For the functional connectome, we threshold such that the largest 50% of edges are set to connected, and the smallest 50% set to disconnected. For the diffusion (which are natively sparse) we just threshold edges that are present to connected, and edges that are not present to disconnected (threshold about 0). 
 
 ```{r}
-require(igraph)
-require(fmriutils)
-
-thresh_matrix = function(matrix, thresh=0.5) {
-  thr = quantile(matrix, thresh)
-  return(ifelse(matrix > thr, 1, 0))
-}
-
 basepath = '/data/connectome_stats/'
 fmri_gr = read_graph(file.path(basepath, 'fmrimean_1709.edgelist'), format="ncol")
 fmri_mean = get.adjacency(fmri_gr, type="both", sparse=FALSE, attr='weight')
@@ -377,18 +407,6 @@ fmriu.plot.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded
 here, we will compute the probability of an edge existing in each of 4 quadrants (2 ipsilateral quadrants; 2 contralateral quadrants):
 
 ```{r}
-block_data = function(matrix, groups) {
-  # matrix is adwi_thresh n x n array
-  # groups is a grouping of the vertices in the matrix as a list
-  blocks = array(NaN, dim=c(2,2))
-  for (i in 1:length(groups)) {
-    for (j in 1:length(groups)) {
-      blocks[i, j] = mean(matrix[groups[[i]], groups[[j]]])
-    }
-  }
-  return(blocks)
-}
-
 group1 = 1:35
 group2 = 36:70
 groups = list(group1, group2)
@@ -429,11 +447,84 @@ for (i in 1:dim(graphs)[1]) {
   ips.phat[i] = mean(ips)
   contr.phat[i] = mean(contr)
 }
+```
+We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{ipsi}$ under the analytical model:
 
+```{r}
+ne = 1225
+ipsi.distr.emp.mod = density(as.numeric(ips.phat))
+contr.distr.emp.mod = density(as.numeric(contr.phat))
+
+ipsi.distr.ana = dnorm(ipsi.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+
+n_ips = length(ipsi.distr.emp.mod$x)
+ipsi.dat = data.frame(x = c(ipsi.distr.emp.mod$x, ipsi.distr.emp.mod$x), y = c(ipsi.distr.emp.mod$y, ipsi.distr.ana),
+                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
+ipsi.dat$distribution = factor(ipsi.dat$distribution)
+
+ggplot(dat=ipsi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}$ ipsi-laterally, DWI'))
+
+
+contr.distr.ana = dnorm(contr.distr.emp.mod$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
+
+n_ips = length(contr.distr.emp.mod$x)
+contr.dat = data.frame(x = c(contr.distr.emp.mod$x, contr.distr.emp.mod$x), y = c(contr.distr.emp.mod$y, contr.distr.ana),
+                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
+contr.dat$distribution = factor(contr.dat$distribution)
+
+ggplot(dat=contr.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}$ contra-laterally, DWI'))
+```
+
+we can also compare the two empirically and analytically:
+
+```{r}
+minx = min(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
+maxx = max(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
+
+n=512
+ipsi.distr.emp.cmp = density(ips.phat, from=minx, to=maxx, n = n)
+contr.distr.emp.cmp = density(contr.phat, from=minx, to=maxx, n = n)
+
+ipsi.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+contr.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
+
+emp.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.emp.cmp$y, contr.distr.emp.cmp$y),
+                     distribution=c(rep("ipsi", n), rep("contra", n)))
+
+
+ggplot(dat=emp.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}_{empirical}$, DWI'))
+
+
+ana.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.ana.cmp, contr.distr.ana.cmp),
+                     distribution=c(rep("ipsi", n), rep("contra", n)))
+
+
+ggplot(dat=ana.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}_{analytical}$, DWI'))
+```
+
+which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
+
+```{r}
 t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE)
 ```
 
-which as we can see, indicates a significant difference in ipsi-lateral connectivity compared to contra-lateral connectivity with $p < 2.2\times 10^{-16}$. 
+which as we can see, indicates a significant difference in ipsi-lateral connectivity compared to contra-lateral connectivity with $p < 2.2\times 10^{-16}$. However, in this case, we note that the model is not very representative of the actual data observed. This is likely due to the fact that much of the data (50%) is acquired from 2 of the sites, so there likely are strong batch-effects present in the $\hat{p}$.
 
 #### Functional
 
@@ -457,10 +548,83 @@ for (i in 1:dim(graphs)[1]) {
   ips.phat[i] = mean(ips)
   contr.phat[i] = mean(contr)
 }
+```
+We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{ipsi}$ under the analytical model:
 
+```{r}
+ne = 1225
+ipsi.distr.emp.mod = density(as.numeric(ips.phat))
+contr.distr.emp.mod = density(as.numeric(contr.phat))
+
+ipsi.distr.ana = dnorm(ipsi.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+
+n_ips = length(ipsi.distr.emp.mod$x)
+ipsi.dat = data.frame(x = c(ipsi.distr.emp.mod$x, ipsi.distr.emp.mod$x), y = c(ipsi.distr.emp.mod$y, ipsi.distr.ana),
+                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
+ipsi.dat$distribution = factor(ipsi.dat$distribution)
+
+ggplot(dat=ipsi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}$ ipsi-laterally, fMRI'))
+
+
+contr.distr.ana = dnorm(contr.distr.emp.mod$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
+
+n_ips = length(contr.distr.emp.mod$x)
+contr.dat = data.frame(x = c(contr.distr.emp.mod$x, contr.distr.emp.mod$x), y = c(contr.distr.emp.mod$y, contr.distr.ana),
+                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
+contr.dat$distribution = factor(contr.dat$distribution)
+
+ggplot(dat=contr.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}$ contra-laterally, fMRI'))
+```
+
+the fit is clearly quite good, and we can also compare the two empirically and analytically:
+
+```{r}
+minx = min(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
+maxx = max(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
+
+n=512
+ipsi.distr.emp.cmp = density(ips.phat, from=minx, to=maxx, n = n)
+contr.distr.emp.cmp = density(contr.phat, from=minx, to=maxx, n = n)
+
+ipsi.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+contr.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
+
+emp.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.emp.cmp$y, contr.distr.emp.cmp$y),
+                     distribution=c(rep("ipsi", n), rep("contra", n)))
+
+
+ggplot(dat=emp.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}_{empirical}$, fMRI'))
+
+
+ana.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.ana.cmp, contr.distr.ana.cmp),
+                     distribution=c(rep("ipsi", n), rep("contra", n)))
+
+
+ggplot(dat=ana.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+  geom_ribbon(ymin=0, alpha=0.5) +
+  ylab('Density') +
+  xlab(TeX('$\\hat{p}$')) +
+  ggtitle(TeX('Distribution of $\\hat{p}_{analytical}$, fMRI'))
+```
+which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
+
+```{r}
 t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE)
 ```
-similar to the diffusion connectomes, the functional connectomes again exhibit a difference in intr-lateral vs. contra-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. 
+
+similar to the diffusion connectomes, the functional connectomes again exhibit a difference in intr-lateral vs. contra-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. The fit here is much better, likely due to the fact that the largest site accounts for only 20% of the total data, and the second largest site just 10%, so fewer batch effects will be apparent compared to the diffusion data.
   
 ### Aggregated 
 
