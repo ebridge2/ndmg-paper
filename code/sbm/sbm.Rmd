@@ -20,8 +20,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Given: 
 
-+ $n$ samples of diffusion connectomes, $D = \left\{d_i\right\}_{i=1}^n$ where $d_i  = (E, V, w)$ for $|V|$ regions of interest and $w(v_i, v_j) = w_{ij} \in [0, 1]$.
-+ $m$ samples of functional connectomes, $F = \left\{f_i\right\}_{i=1}^m$ where $f_i = (E, V, w)$ for $|V|$ regions of interest and $w(v_i, v_j) = w_{ij} \in [0, 1]$.
+
++ $n$ samples of graphs, $\left\{(g_i)\right\}_{i=1}^n$.
++ A graph, $g_i \in G$, where $g_i  = (E, V, w)$ for $N=|V|$ regions of interest and $w(v_i, v_j) = w_{ij}$.
 + a partitioning of the vertices into $C_1$, the left hemisphere ROIs, and $C_2$, the right hemisphere ROIs, where $C_1 \cup C_2 = V$.
 
 Determine if there exists a difference in the connectivity among the vertices in $C_1$ and $C_2$ within a particular modality, and between the communities $C_1$ and $C_2$, for the functional vs diffusion connectomes. 
@@ -74,7 +75,7 @@ Grouping our vertices into the left and right hemispheres, under the above model
     \end{bmatrix}
 \end{align*}
 
-1) regrouping to only consider the ipsi-lateral vs. contra-lateral edges, we can simplify:
+Regrouping to only consider the ipsi-lateral vs. contra-lateral edges, we can simplify:
 
 \begin{align*}
     \hat{\mu}_B &= \begin{bmatrix}
@@ -94,28 +95,6 @@ where $p_i$ represents the probability of a ipsi-lateral connection, and $p_c$ t
 	C &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are not in the same hemisphere}\right\} \\
     p_i &= \frac{1}{|I|} \sum_{(i, j) \in I} M_{ij} \\
     p_c &= \frac{1}{|C|} \sum_{(i, j) \in C} M_{ij}
-\end{align*}
-
-2) Given the following random variables $D, F$:
-
-\begin{align*}
-    D &\sim \mathcal{N}\left(\mu_D, \Sigma_D\right) \\
-    \mu_D &= \begin{bmatrix}D_{11} \\ D_{12} \\ D_{22}\end{bmatrix} \\
-    \Sigma_D &= \begin{bmatrix}
-    \frac{D_{11}(1 - D_{11})}{\begin{pmatrix}n \\ 2\end{pmatrix}} & 0 & 0 \\
-    0 & \frac{D_{12}(1 - D_{12})}{\left(\frac{n}{2}\right)^2} & 0 \\
-    0 & 0 & \frac{D_{22}(1 - D_{22})}{\begin{pmatrix}n \\ 2\end{pmatrix}}
-    \end{bmatrix}
-\end{align*}
-
-\begin{align*}
-    F &\sim \mathcal{N}\left(\mu_F, \Sigma_F\right) \\
-    \mu_F &= \begin{bmatrix}F_{11} \\ F_{12} \\ F_{22}\end{bmatrix} \\
-    \Sigma_F &= \begin{bmatrix}
-    \frac{F_{11}(1 - F_{11})}{\begin{pmatrix}n \\ 2\end{pmatrix}} & 0 & 0 \\
-    0 & \frac{F_{12}(1 - F_{12})}{\left(\frac{n}{2}\right)^2} & 0 \\
-    0 & 0 & \frac{F_{22}(1 - F_{22})}{\begin{pmatrix}n \\ 2\end{pmatrix}}
-    \end{bmatrix}
 \end{align*}
 
 ## Statistical Goal
@@ -138,13 +117,22 @@ That is, determine the probability that the connectivity in the diffusion connec
 
 ## Test Statistic
 
-1) [Welch's T-Test](https://en.wikipedia.org/wiki/Welch%27s_t-test) for testing whether populations have equal means given that they have different variances in the univariate case.
+1) Population $\hat{p}$: [Paired Welch's T-Test](https://en.wikipedia.org/wiki/Welch%27s_t-test) for testing whether two populations have equal means given they have different variances in the univariate case, and obsevations in one class can be paired to observations in the other class.
+
+
+\begin{align*}
+    T = \frac{\bar{\delta}}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}
+\end{align*}
+
+where $\bar{\delta} = \mathbb{E}\left[X_1 - X_2\right]$.
+
+2) Mean $\hat{p}$: [Welch's T-Test](https://en.wikipedia.org/wiki/Welch%27s_t-test) for testing whether populations have equal means given that they have different variances in the univariate case.
 
 \begin{align*}
     T = \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}
 \end{align*}
 
-Since our random variables are all assumed to be independent, we can assume that $s_1 = \Sigma_{11}$, and $s_2 = \Sigma_{22}$.
+Since our random variables are all assumed to be independent (covariance terms are all zero), we can assume that $s_1 = \Sigma_{11}$, and $s_2 = \Sigma_{22}$.
 
 and the degrees of freedom can be calculated as follows:
 
@@ -157,8 +145,6 @@ where the standard deviation $s_j = \sqrt{\frac{p_j(1 - p_j)}{\left(\frac{N}{2}\
 where $\nu_1 = n_1 - 1, \; \nu_2 = n_2 - 1$.
 
 We can then use a one-sided test given $T, \nu$ to get a $p-$ value.
-
-2)
 
 ## P-Value
 
@@ -448,16 +434,16 @@ for (i in 1:dim(graphs)[1]) {
   contr.phat[i] = mean(contr)
 }
 ```
-We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{ipsi}$ under the analytical model:
+We might want to visualize the distribution of $\hat{p}_{contra} - \hat{p}_{ipsi}$ under the analytical model:
 
 ```{r}
 ne = 1225
-ipsi.distr.emp.mod = density(as.numeric(ips.phat))
-contr.distr.emp.mod = density(as.numeric(contr.phat))
+diff.distr.emp.mod = density(as.numeric(ips.phat - contr.phat))
 
-ipsi.distr.ana = dnorm(ipsi.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+# variances sum
+diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
 
-n_ips = length(ipsi.distr.emp.mod$x)
+n_diff = length(diff.distr.emp.mod$x)
 ipsi.dat = data.frame(x = c(ipsi.distr.emp.mod$x, ipsi.distr.emp.mod$x), y = c(ipsi.distr.emp.mod$y, ipsi.distr.ana),
                       distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
 ipsi.dat$distribution = factor(ipsi.dat$distribution)
