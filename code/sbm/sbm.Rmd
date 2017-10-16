@@ -99,21 +99,13 @@ where $p_i$ represents the probability of a ipsi-lateral connection, and $p_c$ t
 
 ## Statistical Goal
 
-1) with $H_0: p_I <= p_C$, $H_A: p_I > p_C$, determine:
+With $H_0: p_I <= p_C$, $H_A: p_I > p_C$, determine:
 
 \begin{align*}
   \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
 \end{align*}
 
 That is, determine the probability of incorrectly rejecting the null hypothesis that the connectivity across hemisphere is less than the connectivity within hemisphere. 
-
-2) with $H_0: \mu_D = \mu_F$, $H_A: \mu_D \neq \mu_F$, determine:
-
-\begin{align*}
-  \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
-\end{align*}
-
-That is, determine the probability that the connectivity in the diffusion connectomes differs from the connectivity in the functional connectomes under a weighted SBM framework.
 
 ## Test Statistic
 
@@ -434,80 +426,31 @@ for (i in 1:dim(graphs)[1]) {
   contr.phat[i] = mean(contr)
 }
 ```
-We might want to visualize the distribution of $\hat{p}_{contra} - \hat{p}_{ipsi}$ under the analytical model:
+We might want to visualize the distribution of $\delta = |\hat{p}_{contra} - \hat{p}_{ipsi}|$ under the analytical model and compare to our empirical model:
 
 ```{r}
 ne = 1225
 diff.distr.emp.mod = density(as.numeric(ips.phat - contr.phat))
 
 # variances sum
-diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
+diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(ips.phat - contr.phat)), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
 
 n_diff = length(diff.distr.emp.mod$x)
-ipsi.dat = data.frame(x = c(ipsi.distr.emp.mod$x, ipsi.distr.emp.mod$x), y = c(ipsi.distr.emp.mod$y, ipsi.distr.ana),
-                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
-ipsi.dat$distribution = factor(ipsi.dat$distribution)
+diff.dat = data.frame(x = c(diff.distr.emp.mod$x, diff.distr.emp.mod$x), y = c(diff.distr.emp.mod$y, diff.distr.ana),
+                      distribution=c(rep("empirical", n_diff), rep("analytical", n_diff)))
+diff.dat$distribution = factor(diff.dat$distribution)
 
-ggplot(dat=ipsi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+ggplot(dat=diff.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}$ ipsi-laterally, DWI'))
-
-
-contr.distr.ana = dnorm(contr.distr.emp.mod$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
-
-n_ips = length(contr.distr.emp.mod$x)
-contr.dat = data.frame(x = c(contr.distr.emp.mod$x, contr.distr.emp.mod$x), y = c(contr.distr.emp.mod$y, contr.distr.ana),
-                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
-contr.dat$distribution = factor(contr.dat$distribution)
-
-ggplot(dat=contr.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}$ contra-laterally, DWI'))
+  xlab(TeX('$\\delta$')) +
+  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
 ```
 
-we can also compare the two empirically and analytically:
+which clearly shows a strong difference in the mean contra-laterally compared to ipsi-laterally, as our $\delta$ is generally quite high. Performing a paired t-test between the ipsi-lateral and contra-lateral $\hat{p}$, we find:
 
 ```{r}
-minx = min(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
-maxx = max(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
-
-n=512
-ipsi.distr.emp.cmp = density(ips.phat, from=minx, to=maxx, n = n)
-contr.distr.emp.cmp = density(contr.phat, from=minx, to=maxx, n = n)
-
-ipsi.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
-contr.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
-
-emp.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.emp.cmp$y, contr.distr.emp.cmp$y),
-                     distribution=c(rep("ipsi", n), rep("contra", n)))
-
-
-ggplot(dat=emp.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}_{empirical}$, DWI'))
-
-
-ana.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.ana.cmp, contr.distr.ana.cmp),
-                     distribution=c(rep("ipsi", n), rep("contra", n)))
-
-
-ggplot(dat=ana.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}_{analytical}$, DWI'))
-```
-
-which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
-
-```{r}
-t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE)
+t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
 ```
 
 which as we can see, indicates a significant difference in ipsi-lateral connectivity compared to contra-lateral connectivity with $p < 2.2\times 10^{-16}$. However, in this case, we note that the model is not very representative of the actual data observed. This is likely due to the fact that much of the data (50%) is acquired from 2 of the sites, so there likely are strong batch-effects present in the $\hat{p}$.
@@ -515,7 +458,7 @@ which as we can see, indicates a significant difference in ipsi-lateral connecti
 #### Functional
 
 ```{r}
-dsets = c('BNU1', 'BNU2', 'BNU3', 'HNU1', 'IBATRT', 'IPCAS1', 'IPCAS2', 'IPCAS5', 'IPCAS6', 'IPCAS8', 'MRN', 'NYU1', 'SWU1', 'SWU2', 'SWU3', 'SWU4', 'UWM', 'XHCUMS')
+dsets = c('BNU1', 'BNU2', 'BNU3', 'HNU1', 'IBATRT', 'IPCAS1', 'IPCAS2', 'IPCAS5', 'IPCAS6', 'IPCAS8', 'MRN1', 'NYU1', 'SWU1', 'SWU2', 'SWU3', 'SWU4', 'UWM', 'XHCUMS')
 atlas = 'desikan-2mm'
 basepath = '/data/fmri_edgelists'
 
@@ -535,79 +478,31 @@ for (i in 1:dim(graphs)[1]) {
   contr.phat[i] = mean(contr)
 }
 ```
-We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{ipsi}$ under the analytical model:
+We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{ipsi}$ under the analytical model and compare to our empirical model: 
 
 ```{r}
 ne = 1225
-ipsi.distr.emp.mod = density(as.numeric(ips.phat))
-contr.distr.emp.mod = density(as.numeric(contr.phat))
+diff.distr.emp.mod = density(as.numeric(ips.phat - contr.phat))
 
-ipsi.distr.ana = dnorm(ipsi.distr.emp.mod$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
+# variances sum
+diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(ips.phat - contr.phat)), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
 
-n_ips = length(ipsi.distr.emp.mod$x)
-ipsi.dat = data.frame(x = c(ipsi.distr.emp.mod$x, ipsi.distr.emp.mod$x), y = c(ipsi.distr.emp.mod$y, ipsi.distr.ana),
-                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
-ipsi.dat$distribution = factor(ipsi.dat$distribution)
+n_diff = length(diff.distr.emp.mod$x)
+diff.dat = data.frame(x = c(diff.distr.emp.mod$x, diff.distr.emp.mod$x), y = c(diff.distr.emp.mod$y, diff.distr.ana),
+                      distribution=c(rep("empirical", n_diff), rep("analytical", n_diff)))
+diff.dat$distribution = factor(diff.dat$distribution)
 
-ggplot(dat=ipsi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
+ggplot(dat=diff.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}$ ipsi-laterally, fMRI'))
-
-
-contr.distr.ana = dnorm(contr.distr.emp.mod$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
-
-n_ips = length(contr.distr.emp.mod$x)
-contr.dat = data.frame(x = c(contr.distr.emp.mod$x, contr.distr.emp.mod$x), y = c(contr.distr.emp.mod$y, contr.distr.ana),
-                      distribution=c(rep("empirical", n_ips), rep("analytical", n_ips)))
-contr.dat$distribution = factor(contr.dat$distribution)
-
-ggplot(dat=contr.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}$ contra-laterally, fMRI'))
+  xlab(TeX('$\\delta$')) +
+  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
 ```
 
-the fit is clearly quite good, and we can also compare the two empirically and analytically:
-
-```{r}
-minx = min(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
-maxx = max(ipsi.distr.emp.mod$x, contr.distr.emp.mod$x)
-
-n=512
-ipsi.distr.emp.cmp = density(ips.phat, from=minx, to=maxx, n = n)
-contr.distr.emp.cmp = density(contr.phat, from=minx, to=maxx, n = n)
-
-ipsi.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(ips.phat), sd=sqrt(model.var(mean(ips.phat), ne)))
-contr.distr.ana.cmp = dnorm(ipsi.distr.emp.cmp$x, mean=mean(contr.phat), sd=sqrt(model.var(mean(contr.phat), ne)))
-
-emp.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.emp.cmp$y, contr.distr.emp.cmp$y),
-                     distribution=c(rep("ipsi", n), rep("contra", n)))
-
-
-ggplot(dat=emp.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}_{empirical}$, fMRI'))
-
-
-ana.dat = data.frame(x = c(ipsi.distr.emp.cmp$x, contr.distr.emp.cmp$x), y=c(ipsi.distr.ana.cmp, contr.distr.ana.cmp),
-                     distribution=c(rep("ipsi", n), rep("contra", n)))
-
-
-ggplot(dat=ana.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
-  geom_ribbon(ymin=0, alpha=0.5) +
-  ylab('Density') +
-  xlab(TeX('$\\hat{p}$')) +
-  ggtitle(TeX('Distribution of $\\hat{p}_{analytical}$, fMRI'))
-```
 which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
 
 ```{r}
-t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE)
+t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
 ```
 
 similar to the diffusion connectomes, the functional connectomes again exhibit a difference in intr-lateral vs. contra-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. The fit here is much better, likely due to the fact that the largest site accounts for only 20% of the total data, and the second largest site just 10%, so fewer batch effects will be apparent compared to the diffusion data.
