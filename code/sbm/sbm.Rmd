@@ -216,9 +216,7 @@ block_data = function(matrix, groups) {
 
 # computes the analytical welch t-test given mu and the number of observations
 # and the number of samples. Optionally accepts params for the degrees of freedom
-# to override the def
-dwi.distr.emp.mod = density(as.numeric(dwi.delta))
-ault computation.
+# to override the default computation.
 ana.welch_ttest = function(u1, u2, ne1, ne2, ns1=NaN, ns2=NaN, df=NaN, verbose=TRUE) {
   s1 = sqrt(model.var(p=u1, n=ne1))
   s2 = sqrt(model.var(p=u2, n=ne2))
@@ -268,9 +266,7 @@ for (n in ns) {
   for (p in ps) {
     v_ar = array(NaN, dim=c(nsim))
     m_ar = array(NaN, dim=c(nsim))
-    for (i in 1
-dwi.distr.emp.mod = density(as.numeric(dwi.delta))
-:nsim) {
+    for (i in 1:nsim) {
       pemp = replicate(n, {
         dat = rbinom(n = n, p = p, size=1)
         phat = sum(dat)/length(dat)
@@ -326,9 +322,7 @@ for (j in 1:length(ns)) {
   n = ns[j]
   for (i in 1:length(diff)) {
     in.p = p + diff[i]/2
-    out.p =
-dwi.distr.emp.mod = density(as.numeric(dwi.delta))
- p - diff[i]/2
+    out.p = p - diff[i]/2
     # under the model, assume the p_in is the mean within group, and p_out is the mean outside of group
     # compute the standard deviation according to the model
     means = c(in.p, out.p)
@@ -384,9 +378,7 @@ fmri_thresh = thresh_matrix(fmri_mean)
 dwi_thresh = thresh_matrix(dwi_mean, thresh=0)
 
 fmriu.plot.plot_graph(fmri_thresh, include_diag = TRUE, title = "Mean Thresholded Functional Connectome", legend.name = "connection")
-fmriu.plot
-dwi.distr.emp.mod = density(as.numeric(dwi.delta))
-.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded DWI Connectome", legend.name = "connection")
+fmriu.plot.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded DWI Connectome", legend.name = "connection")
 ```
 
 ## Blocked Data
@@ -438,7 +430,7 @@ for (i in 1:dim(graphs)[1]) {
   contr = c(gr[group1, group2], gr[group2, group1])
   ips.phat[i] = mean(ips)
   contr.phat[i] = mean(contr)
-  per.p = ana.welch_ttest(ips.phat[i], contr.phat[i], length(ips), length(contr), ns1=1, ns2=1, df = 1)
+  per.p[i] = ana.welch_ttest(ips.phat[i], contr.phat[i], length(ips), length(contr), ns1=1, ns2=1, df = 1)$p
 }
 ```
 We might want to visualize the distribution of $\delta = |\hat{p}_{contra} - \hat{p}_{ipsi}|$ under the analytical model and compare to our empirical model:
@@ -472,7 +464,19 @@ which as we can see, indicates a significant difference in ipsi-lateral connecti
 
 ##### Computing p-value per-subject and looking at distribution of p-values (one p-value per-graph)
 
+Below, we look at the distribution of our $p-$values wehre we estimate one p-value per graph:
+```{r}
+p.dat = data.frame(p=per.p, dataset = datasets)
+p.dat$dataset = factor(p.dat$dataset)
+ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
+  geom_jitter() +
+  ggtitle('Per-subject P-value (1 graph)') +
+  xlab('Dataset') +
+  ylab('p-value') +
+  theme(axis.text.x = element_text(angle=45))
+```
 
+As we can see, with just $1$ graph, we still see that ipsi-lateral connectivity exceeds contra-lateral connectivity with $p < .05$ for all of the individual graphs.
 
 #### Functional
 
@@ -531,9 +535,21 @@ t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE, paired=TRUE
 
 similar to the diffusion connectomes, the functional connectomes again exhibit a difference in intr-lateral vs. contra-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. The fit here is much better, likely due to the fact that the largest site accounts for only 20% of the total data, and the second largest site just 10%, so fewer batch effects will be apparent compared to the diffusion data.
 
-
 ##### Computing p-value per-subject and looking at distribution of p-values (one p-value per-graph)
 
+Below, we look at the distribution of our $p-$values wehre we estimate one p-value per graph:
+```{r}
+p.dat = data.frame(p=per.p, dataset = datasets)
+p.dat$dataset = factor(p.dat$dataset)
+ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
+  geom_jitter() +
+  ggtitle('Per-subject P-value (1 graph)') +
+  xlab('Dataset') +
+  ylab('p-value') +
+  theme(axis.text.x = element_text(angle=45))
+```
+
+As we can see, with just $1$ graph, we do not have nearly the confidence that the ipsi-lateral connectivity exceeds the contra-lateral connectivity that we did with the diffusion graphs.
 
 
 ### Aggregated 

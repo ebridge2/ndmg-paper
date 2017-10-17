@@ -395,7 +395,7 @@ fmriu.plot.plot_graph(dwi_block, title = "Blocked DWI Connectome", xlabel = "Hem
 
 ## Difference in Ipsilateral vs. Contralateral Connectivity
 
-### Per-Connectome
+### Comparing Distributions of Functional and Diffusion $\hat{\delta}$ (one p-value total)
 
 Here, we take each functional and diffusion connectome individually, and compute the parameters of our block model for each connectome. We collect all of the ipsi-lateral probabilities as our first sample, and the contra-lateral probabilities as our second sample:
 
@@ -523,6 +523,10 @@ t.test(dwi.delta, fmri.delta, alternative="greater", var.equal=FALSE)
 ```
 
 which shows that with $p < 2.2 \times 10^{-16}$, the difference in connectivity ipsi-laterally vs. contra-laterally in diffusion connectomes exceeds the difference in connectivity ipsi-laterally vs contra-laterally in functional connectomes.
+
+### Comparing p-value per subject of Functional vs Diffusion $\hat{\delta}$ (one p-value total)
+
+Below, we compute a $p-$value given 2 graphs, 1 functional and 1 diffusion, from the same subject.
 
 ### Aggregated 
 
