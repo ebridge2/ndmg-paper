@@ -417,7 +417,7 @@ dwi.subjects = graphobj$subjects
 ne = 1225
 ips.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 contr.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
-dwi.per.var = array(NaN, dim=c(dim(fmri.graphs)[1]))
+dwi.per.var = array(NaN, dim=c(dim(dwi.graphs)[1]))
 for (i in 1:dim(dwi.graphs)[1]) {
   gr = thresh_matrix(dwi.graphs[i,,])
   ips = c(gr[group1, group1], gr[group2, group2])
@@ -546,6 +546,7 @@ per.dataset <- c()
 per.subject <- c()
 fmri.failed <- c()
 dwi.failed <- c()
+p.failed <- c()
 per.dwi.delta <- c()
 per.fmri.delta <- c()
 unique_subs = unique(common.sub.sid)
@@ -565,6 +566,7 @@ for (i in 1:length(unique_subs)) {
       if (pval > .05) {
         fmri.failed <- c(fmri.failed, fidx)
         dwi.failed <- c(dwi.failed, didx)
+        p.failed <- c(p.failed, pval)
       }
     }
   }
@@ -586,14 +588,27 @@ As we can see, even at just the $2-$sample level, the difference in ipsi-lateral
 ##### Example of subject with $p > .05$
 
 ```{r}
-dwfailed = dwi.graphs[dwi.failed[1],,]
-fmfailed = fmri.graphs[fmri.failed[1],,]
+ix <- sort(p.failed, index.return=TRUE)$ix[1]
+dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
+fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
 fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
-                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[1]]), dwi.delta[dwi.failed[1]]),
-                      legend.name = "connection", limits = c(min(dwfailed), max(dwfailed)))
+                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
+                      legend.name = "connection")
 fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
-                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[1]]), fmri.delta[fmri.failed[1]]),
-                      legend.name = "connection", limits = c(min(fmfailed), max(fmfailed)))
+                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
+                      legend.name = "connection")
+```
+
+```{r}
+ix <- sort(p.failed, index.return=TRUE)$ix[2]
+dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
+fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
+fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
+                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
+                      legend.name = "connection")
+fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
+                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
+                      legend.name = "connection")
 ```
 
 Below, we visualize the difference $\delta_D - \delta_F$ between each pair of connectomes, and investigate the result in the $p-$value:
