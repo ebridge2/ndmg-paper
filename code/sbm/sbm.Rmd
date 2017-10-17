@@ -470,7 +470,8 @@ p.dat = data.frame(p=per.p, dataset = datasets)
 p.dat$dataset = factor(p.dat$dataset)
 ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   geom_jitter() +
-  ggtitle('Per-subject P-value (1 graph)') +
+  coord_trans(y = "log10") +
+  ggtitle(TeX(sprintf('DWI Per-subject P-value (1 graph), %.2f percent have $p < .05$', 100*sum(per.p < .05)/length(per.p)))) +
   xlab('Dataset') +
   ylab('p-value') +
   theme(axis.text.x = element_text(angle=45))
@@ -543,7 +544,8 @@ p.dat = data.frame(p=per.p, dataset = datasets)
 p.dat$dataset = factor(p.dat$dataset)
 ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   geom_jitter() +
-  ggtitle('Per-subject P-value (1 graph)') +
+  ggtitle(TeX(sprintf('fMRI Per-subject P-value (1 graph), %.2f percent have $p < .05$', 100*sum(per.p < .05)/length(per.p)))) +
+  coord_trans(y = "log10") +
   xlab('Dataset') +
   ylab('p-value') +
   theme(axis.text.x = element_text(angle=45))
