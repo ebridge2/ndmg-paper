@@ -19,12 +19,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Given: 
 
-
-+ $n$ samples of graphs, $\left\{(g_i)\right\}_{i=1}^n$.
-+ A graph, $g_i \in G$, where $g_i  = (E, V, w)$ for $N=|V|$ regions of interest and $w(v_i, v_j) = w_{ij}$.
++ $n$ samples of graphs, $G_1 = \left\{(g_i)\right\}_{i=1}^n$ from one population, and $m$ samples of graphs, $G_2 = \left\{(g_i)\right\}_{i=1}^m$.
++ A graph, $g_i \in G_j$, where $g_i  = (E, V, w)$ for $N=|V|$ regions of interest and $w(v_i, v_j) = w_{ij}$.
 + a partitioning of the vertices into $C_1$, the left hemisphere ROIs, and $C_2$, the right hemisphere ROIs, where $C_1 \cup C_2 = V$.
 
-Determine if there exists a difference in the connectivity among the vertices in $C_1$ and $C_2$ within a particular modality, and between the communities $C_1$ and $C_2$, for the functional and diffusion connectomes. 
+Determine if there exists a difference in the connectivity among the vertices in $C_1$ and $C_2$ between our two collections of graphs $G_1$ and $G_2$, for functional vs diffusion connectomes.
 
 ## Statistical Model
 
@@ -34,22 +33,57 @@ Assume we have a random variable $A$ which can be characterized by the Stochasti
 	A \sim SBM(G, B)
 \end{align*}
 
-where $G$ is a grouping of the $N$ vertices in our graph into our respective communities and $B$ represents the parameters for within and between group edge probabilities. Assuming the number of edges in our graph are binomially distributed wrt the parameter $p$, we can estimate the number of edges for each group:
+where $G$ is a grouping of the $N$ vertices in our graph into our respective communities and $B$ represents the parameters for within and between group edge probabilities. Assume that the number of edges in each subgraph are binomially distributed with the parameter $p$, we can estimate the number of edges for each group with the pmf (noting that in our case, we are given $n$ and $k$ a priori):
 
 \begin{align*}
-  f_B(n, k | p) &= \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k} \\
-  \mu_{\hat{k}} &= np \\
-  \sigma^2_{\hat{k}} &= np(1 - p)
+  f_B(p | n, k) &= \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k}
 \end{align*}
 
-Assuming that $p = \frac{k}{n}$, then we can see that:
+Then the likelihood function is of the form:
 
 \begin{align*}
-  \mu_{\hat{p}} &= \frac{k}{n} \\
-  \sigma^2_{\hat{p}} &= \frac{np(1-p)}{n^2} = \frac{p(1-p)}{n}
+  L(p | n, k) &= \prod_{k=0}^n f_B(n, k | p) = \prod_{k=0}^n \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k} \\
+  log(L(p | n, k)) &= \sum_{k=0}^n \log\left(\begin{pmatrix}n \\ k\end{pmatrix}\right) + k\log (p) + (n - k)\log (1 - p)
+\end{align*}
+    
+    
+where $G$ is a grouping of the $N$ vertices in our graph into our respective communities and $B$ represents the parameters for within and between group edge probabilities. Assume that the number of edges in each subgraph are binomially distributed with the parameter $p$, we can estimate the number of edges for each group with the pmf (noting that in our case, we are given $n$ and $k$ a priori):
+
+\begin{align*}
+  f_B(p | n, k) &= \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k}
 \end{align*}
 
-where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections betweeb community $C_l$ and $C_m$ can be modelled iid:
+Then the likelihood function is of the form:
+
+\begin{align*}
+  L(p | n, k) &= \prod_{k=0}^n f_B(n, k | p) = \prod_{k=0}^n \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k} \\
+  log(L(p | n, k)) &= \sum_{k=0}^n \log\left(\begin{pmatrix}n \\ k\end{pmatrix}\right) + k\log (p) + (n - k)\log (1 - p)
+\end{align*}
+
+Maximizing with respect to $p$:
+
+\begin{align*}
+    \frac{\delta log(L(p | n, k))}{\delta p} &= \sum_{k=0}^n \frac{k}{p} - \frac{n - k}{1 - p} = 0 \\
+    \frac{k}{p} &= \frac{n - k}{1 - p} \\
+    \hat{p} &= \mathbb{E}[p] = \frac{k}{n}
+\end{align*}
+
+to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(\hat{p}) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial theorem can be thought of as an aggregation of $n$ independent bernoulli trials with probability $\hat{p}$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
+
+\begin{align*}
+  Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
+  \mathbb{E}\left[X_i^2\right] &= 0^2(1-p) + 1^2(p) = p \\
+  Var(k) &= \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
+  &= np(1-p)
+\end{align*}
+
+Then:
+
+\begin{align*}
+  Var(\hat{p}) &= \frac{1}{n^2}Var(k) &= \frac{p(1-p)}{n}
+\end{align*}
+
+where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections between community $C_l$ and $C_m$ can be modelled iid:
 
 \begin{align*}
   \hat{B}_{lm} &= \mathcal{N}(\mu_{lm}, \sigma_{lm})
@@ -74,7 +108,7 @@ Grouping our vertices into the left and right hemispheres, under the above model
     \end{bmatrix}
 \end{align*}
 
-Regrouping to only consider the ipsi-lateral vs. contra-lateral edges, we can simplify:
+Generalizing under the independent edge model, we can simplify:
 
 \begin{align*}
     \hat{\mu}_B &= \begin{bmatrix}
@@ -95,6 +129,8 @@ where $p_i$ represents the probability of a ipsi-lateral connection, and $p_c$ t
     p_i &= \frac{1}{|I|} \sum_{(i, j) \in I} M_{ij} \\
     p_c &= \frac{1}{|C|} \sum_{(i, j) \in C} M_{ij}
 \end{align*}
+
+Then we have $\delta = |p_i - p_c|$ representing the difference in connectivity from ipsi-lateral to contra-lateral. 
 
 ## Statistical Goal
 
