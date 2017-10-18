@@ -45,20 +45,6 @@ Then the likelihood function is of the form:
   L(p | n, k) &= \prod_{k=0}^n f_B(n, k | p) = \prod_{k=0}^n \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k} \\
   log(L(p | n, k)) &= \sum_{k=0}^n \log\left(\begin{pmatrix}n \\ k\end{pmatrix}\right) + k\log (p) + (n - k)\log (1 - p)
 \end{align*}
-    
-    
-where $G$ is a grouping of the $N$ vertices in our graph into our respective communities and $B$ represents the parameters for within and between group edge probabilities. Assume that the number of edges in each subgraph are binomially distributed with the parameter $p$, we can estimate the number of edges for each group with the pmf (noting that in our case, we are given $n$ and $k$ a priori):
-
-\begin{align*}
-  f_B(p | n, k) &= \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k}
-\end{align*}
-
-Then the likelihood function is of the form:
-
-\begin{align*}
-  L(p | n, k) &= \prod_{k=0}^n f_B(n, k | p) = \prod_{k=0}^n \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k} \\
-  log(L(p | n, k)) &= \sum_{k=0}^n \log\left(\begin{pmatrix}n \\ k\end{pmatrix}\right) + k\log (p) + (n - k)\log (1 - p)
-\end{align*}
 
 Maximizing with respect to $p$:
 
@@ -68,7 +54,7 @@ Maximizing with respect to $p$:
     \hat{p} &= \mathbb{E}[p] = \frac{k}{n}
 \end{align*}
 
-to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(\hat{p}) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial theorem can be thought of as an aggregation of $n$ independent bernoulli trials with probability $\hat{p}$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
+to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial theorem can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
@@ -80,7 +66,7 @@ to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(\ha
 Then:
 
 \begin{align*}
-  Var(\hat{p}) &= \frac{1}{n^2}Var(k) &= \frac{p(1-p)}{n}
+  Var(\hat{p}) &= \frac{1}{n^2}Var(k) = \frac{\hat{p}(1-\hat{p})}{n}
 \end{align*}
 
 where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections between community $C_l$ and $C_m$ can be modelled iid:
