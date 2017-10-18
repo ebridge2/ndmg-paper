@@ -590,13 +590,13 @@ As we can see, even at just the $2-$sample level, the difference in ipsi-lateral
 ```{r}
 ix <- sort(p.failed, index.return=TRUE)$ix[1]
 dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
-fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
+fmfailed = fmri.graphs[fmri.failed[ix],,]
 fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
                       title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
                       legend.name = "connection")
 fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
                       title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
-                      legend.name = "connection")
+                      legend.name = "connection", limits=c(0, 2500))
 ```
 
 ```{r}
