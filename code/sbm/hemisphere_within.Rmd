@@ -1,5 +1,5 @@
 ---
-title: "Using a Stochastic Block Model to quantify differences in connectivity ipsi-laterally vs contra-laterally"
+title: "Using a Generalized SBM to quantify differences in hemispheric connectivity within DWI and fMRI Connectome Populations"
 author: "Eric Bridgeford"
 date: "September 29, 2017"
 header-includes:
@@ -58,8 +58,8 @@ to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) 
 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
-  \mathbb{E}\left[X_i^2\right] &= 0^2(1-p) + 1^2(p) = p \\
-  Var(k) &= \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
+  \mathbb{E}\left[X_i^2\right] &= 0^2(1-p) + 1^2(p  ) = p \\
+  Var(k) &= \sum_{i=1}^n \mathbb{E}\left[X_i^2\right] - \mathbb{E}\left[X_i\right]^2 \\
   &= np(1-p)
 \end{align*}
 
@@ -126,7 +126,7 @@ With $H_0: p_I <= p_C$, $H_A: p_I > p_C$, determine:
   \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
 \end{align*}
 
-That is, determine the probability of incorrectly rejecting the null hypothesis that the connectivity across hemisphere is less than the connectivity within hemisphere. 
+That is, determine the probability of incorrectly rejecting the null hypothesis that the connectivity across hemisphere is greater than or equal to than the connectivity within hemisphere. 
 
 ## Test Statistic
 
@@ -184,9 +184,12 @@ Compute_Power(n, means, sds, sig=.95):
   cutoff = T_{dist}(sig, df=n-2)
   tstat = []
   for i in 1:n
-    snull = random_normal(n, means[1], sds[1])
-    salt = random_normal(n, means[2], sds[2])
-    tstat[i] = welch_ttest(snull, salt)$statistic
+    # simulate 100 phats from null
+    snull = repeat(100 times, sum(random_binomial(ne, means[1]))/ne)
+    # simumlate 100 phats from alternative, where means[2] > means[1]
+    salt = repeat(100 times, sum(random_binomial(ne, means[2]))/ne)
+    # determine whether difference in means[2] - means[1] is appreciable
+    tstat[i] = welch_ttest(salt, snull, test="alt > null")$statistic
   end
   return(sum(ts > cutoff)/n)
 ```

@@ -1,5 +1,5 @@
 ---
-title: "Using a Stochastic Block Model to quantify the difference between DTI and fMRI Connectomes"
+title: "Using a Generalized SBM to quantify the difference between DTI and fMRI Connectome Hemispheric Connectivity"
 author: "Eric Bridgeford"
 date: "September 29, 2017"
 header-includes:
@@ -59,7 +59,7 @@ to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
   \mathbb{E}\left[X_i^2\right] &= 0^2(1-p) + 1^2(p) = p \\
-  Var(k) &= \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
+  Var(k) &= \sum_{i=1}^n \mathbb{E}\left[X_i^2\right] - \mathbb{E}\left[X_i\right]^2 \\
   &= np(1-p)
 \end{align*}
 
@@ -126,7 +126,7 @@ Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of gra
   \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
 \end{align*}
 
-That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ exceeds the difference in connectivity in the graphs of $G_2$. 
+That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ is less than or equal to the difference in connectivity in the graphs of $G_2$. 
 
 ## Test Statistic
 
@@ -171,13 +171,16 @@ where $p(x, df)$ is the pdf for the $T$ distribution with degrees of freedom $df
 where $T_{critical}$ is the test-statistic at the given level of significance $\alpha$ specified by our test. To compute the power, we will compute the rejection cutoff for the test-statistic, and then simulate data under the alternative hypothesis, and see how many times we would reject the null hypothesis in our simulated data. In pseudo-code:
 
 ```{r, eval=FALSE}
-Compute_Power(n, means, sds, sig=.95):
+Compute_Power(n, diffs, sig=.95):
   cutoff = T_{dist}(sig, df=n-2)
   tstat = []
   for i in 1:n
-    snull = random_normal(n, means[1], sds[1])
-    salt = random_normal(n, means[2], sds[2])
-    tstat[i] = welch_ttest(snull, salt)$statistic
+    # simulate 100 deltas from 2 populations of binomial edges
+    snull = repeat(100 times, sum(random_binomial(ne, 0.5 + diffs[1]))/ne - sum(randim_binomial(ne, 0.5 - diffs[1]))/ne)
+    # simulate 100 deltas from 2 populations of binomial edges, where diffs[2] > diffs[1]
+    salt = repeat(100 times, sum(random_binomial(ne, 0.5 + diffs[2]))/ne - sum(randim_binomial(ne, 0.5 - diffs[2]))/ne)
+    # determine whether difference in (0.5 + diffs[2] - (0.5 - diffs[2])) - (0.5 + diffs[1] - (0.5 - diffs[2])) is appreciable
+    tstat[i] = welch_ttest(salt, snull, test="alt > null")$statistic
   end
   return(sum(ts > cutoff)/n)
 ```

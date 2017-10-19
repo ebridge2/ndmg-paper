@@ -1,5 +1,5 @@
 ---
-title: "Using a Stochastic Block Model to quantify the difference between DTI and fMRI Connectomes"
+title: "Using a Generalized SBM to quantify the difference between DTI and fMRI Connectomes in Bi-Lateral Connectivity"
 author: "Eric Bridgeford"
 date: "September 29, 2017"
 header-includes:
@@ -59,7 +59,7 @@ to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
   \mathbb{E}\left[X_i^2\right] &= 0^2(1-p) + 1^2(p) = p \\
-  Var(k) &= \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
+  Var(k) &= \sum_{i=1}^n \mathbb{E}\left[X_i^2\right] - \mathbb{E}\left[X_i\right]^2 \\
   &= np(1-p)
 \end{align*}
 
@@ -98,25 +98,25 @@ Generalizing under the independent edge model, we can simplify:
 
 \begin{align*}
     \hat{\mu}_B &= \begin{bmatrix}
-    	p_{i} \\
-        p_{c} 
+    	p_{b} \\
+        p_{n} 
     \end{bmatrix} \\
     \hat{\Sigma}_B &= \begin{bmatrix}
-    	\frac{p_{i}(1 - p_{i})}{\left(\frac{N}{2}\right)^2} & 0 \\
-    	0 & \frac{p_{c}(1 - p_{c})}{\left(\frac{N}{2}\right)^2}
+    	\frac{p_{b}(1 - p_{b})}{\left(\frac{N}{2}\right)^2} & 0 \\
+    	0 & \frac{p_{n}(1 - p_{n})}{\left(\frac{N}{2}\right)^2}
     \end{bmatrix}
 \end{align*}
 
-where $p_i$ represents the probability of a ipsi-lateral connection, and $p_c$ the probability of a contra-lateral connection. Then given the connectome megamean as an adjacency matrix $M \in \left\{0, 1\right\}^{N \times N}$ with $N$ vertices, we can compute $p_i$ and $p_c$ as follows:
+where $p_b$ represents the probability of a bi-lateral connection, and $p_n$ the probability of a non bi-lateral connection. Then given the connectome megamean as an adjacency matrix $M \in \left\{0, 1\right\}^{N \times N}$ with $N$ vertices, we can compute $p_b$ and $p_n$ as follows:
 
 \begin{align*}
-	I &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are in the same hemisphere}\right\} \\
-	C &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are not in the same hemisphere}\right\} \\
-    p_i &= \frac{1}{|I|} \sum_{(i, j) \in I} M_{ij} \\
-    p_c &= \frac{1}{|C|} \sum_{(i, j) \in C} M_{ij}
+	B &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are the same region in opposite hemispheres}\right\} \\
+	N &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are not the same region in opposite hemispheres}\right\} \\
+    p_i &= \frac{1}{|B|} \sum_{(i, j) \in B} M_{ij} \\
+    p_c &= \frac{1}{|N|} \sum_{(i, j) \in N} M_{ij}
 \end{align*}
 
-Then we have $\delta = |p_i - p_c|$ representing the difference in connectivity from ipsi-lateral to contra-lateral. 
+Then we have $\delta = |p_b - p_n|$ representing the difference in connectivity from bi-lateral to non bi-lateral. 
 
 ## Statistical Goal
 
@@ -126,7 +126,7 @@ Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of gra
   \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
 \end{align*}
 
-That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ exceeds the difference in connectivity in the graphs of $G_2$. 
+That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ is less than or equal to the difference in connectivity in the graphs of $G_2$. 
 
 ## Test Statistic
 
@@ -171,13 +171,16 @@ where $p(x, df)$ is the pdf for the $T$ distribution with degrees of freedom $df
 where $T_{critical}$ is the test-statistic at the given level of significance $\alpha$ specified by our test. To compute the power, we will compute the rejection cutoff for the test-statistic, and then simulate data under the alternative hypothesis, and see how many times we would reject the null hypothesis in our simulated data. In pseudo-code:
 
 ```{r, eval=FALSE}
-Compute_Power(n, means, sds, sig=.95):
+Compute_Power(n, diffs, sig=.95):
   cutoff = T_{dist}(sig, df=n-2)
   tstat = []
   for i in 1:n
-    snull = random_normal(n, means[1], sds[1])
-    salt = random_normal(n, means[2], sds[2])
-    tstat[i] = welch_ttest(snull, salt)$statistic
+    # simulate 100 deltas from 2 populations of binomial edges
+    snull = repeat(100 times, sum(random_binomial(ne, 0.5 + diffs[1]))/ne - sum(randim_binomial(ne, 0.5 - diffs[1]))/ne)
+    # simulate 100 deltas from 2 populations of binomial edges, where diffs[2] > diffs[1]
+    salt = repeat(100 times, sum(random_binomial(ne, 0.5 + diffs[2]))/ne - sum(randim_binomial(ne, 0.5 - diffs[2]))/ne)
+    # determine whether difference in (0.5 + diffs[2] - (0.5 - diffs[2])) - (0.5 + diffs[1] - (0.5 - diffs[2])) is appreciable
+    tstat[i] = welch_ttest(salt, snull, test="alt > null")$statistic
   end
   return(sum(ts > cutoff)/n)
 ```
