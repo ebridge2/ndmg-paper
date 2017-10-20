@@ -400,28 +400,27 @@ fmriu.plot.plot_graph(fmri_thresh, include_diag = TRUE, title = "Mean Thresholde
 fmriu.plot.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded DWI Connectome", legend.name = "connection")
 ```
 
-## Blocked Data
-
-here, we will compute the probability of an edge existing in each of 4 quadrants (2 ipsilateral quadrants; 2 contralateral quadrants):
-
 ```{r}
-group1 = 1:35
-group2 = 36:70
-groups = list(group1, group2)
-fmri_block = block_data(fmri_thresh, groups)
-dwi_block = block_data(dwi_thresh, groups)
-
-fmriu.plot.plot_graph(fmri_block, title = "Blocked Functional Connectome", xlabel = "Hemisphere",
-                      ylabel="Hemisphere", include_diag = TRUE, legend.name = "p")
-fmriu.plot.plot_graph(dwi_block, title = "Blocked DWI Connectome", xlabel = "Hemisphere",
-                      ylabel="Hemisphere", include_diag = TRUE, legend.name = "p")
+group1 = c()
+group2 = c()
+# loop over all possible edges to get the indices we want to examine
+for (i in 1:70) {
+  for (j in 1:70) {
+    idx = i + 70*(j - 1)
+    if (abs(i - j) == 35) {  # if this is a bi-lateral edge
+      group1 <- c(group1, idx)
+    } else if (i != j) {
+      group2 <- c(group2, idx)
+    }  # don't count self-loops
+  }
+}
 ```
 
-## Difference in Ipsilateral vs. Contralateral Connectivity
+## Difference in Bi-Lateral vs. Non Bi-Lateral Connectivity
 
 ### Comparing Distributions of Functional and Diffusion $\hat{\delta}$ (one p-value total)
 
-Here, we take each functional and diffusion connectome individually, and compute the parameters of our block model for each connectome. We collect all of the ipsi-lateral probabilities as our first sample, and the contra-lateral probabilities as our second sample:
+Here, we take each functional and diffusion connectome individually, and compute the parameters of our block model for each connectome. We collect all of the bi-lateral probabilities as our first sample, and the non bi-lateral probabilities as our second sample:
 
 #### Diffusion
 
@@ -439,20 +438,20 @@ dwi.subjects = graphobj$subjects
 
 ```{r}
 ne = 1225
-ips.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
-contr.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
+bi.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
+nbi.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 dwi.per.var = array(NaN, dim=c(dim(dwi.graphs)[1]))
 for (i in 1:dim(dwi.graphs)[1]) {
-  gr = thresh_matrix(dwi.graphs[i,,])
-  ips = c(gr[group1, group1], gr[group2, group2])
-  contr = c(gr[group1, group2], gr[group2, group1])
-  ips.phat[i] = mean(ips)
-  contr.phat[i] = mean(contr)
-  dwi.per.var[i] = model.var(ips.phat[i], ne) + model.var(contr.phat[i], ne)
+  gr = thresh_matrix(dwi.graphs[i,,], thresh=0)
+  bi = c(gr[group1])
+  nbi = c(gr[group2])
+  bi.phat[i] = mean(bi)
+  nbi.phat[i] = mean(nbi)
+  dwi.per.var[i] = model.var(bi.phat[i], ne) + model.var(nbi.phat[i], ne)
 }
-dwi.delta = abs(ips.phat - contr.phat)
+dwi.delta = abs(bi.phat - nbi.phat)
 dwi.mu = mean(dwi.delta)
-dwi.var = model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)
+dwi.var = model.var(mean(bi.phat), ne) + model.var(mean(nbi.phat), ne)
 ```
 
 #### Functional
@@ -469,23 +468,23 @@ fmri.subjects = graphobj$subjects
 ```
 
 ```{r}
-ips.phat = array(NaN, dim=c(dim(fmri.graphs)[1]))
-contr.phat = array(NaN, dim=c(dim(fmri.graphs)[1]))
+bi.phat = array(NaN, dim=c(dim(fmri.graphs)[1]))
+nbi.phat = array(NaN, dim=c(dim(fmri.graphs)[1]))
 fmri.per.var = array(NaN, dim=c(dim(fmri.graphs)[1]))
 for (i in 1:dim(fmri.graphs)[1]) {
   gr = thresh_matrix(fmri.graphs[i,,])
-  ips = c(gr[group1, group1], gr[group2, group2])
-  contr = c(gr[group1, group2], gr[group2, group1])
-  ips.phat[i] = mean(ips)
-  contr.phat[i] = mean(contr)
-  fmri.per.var[i] = model.var(ips.phat[i], ne) + model.var(contr.phat[i], ne)
+  bi = c(gr[group1])
+  nbi = c(gr[group2])
+  bi.phat[i] = mean(bi)
+  nbi.phat[i] = mean(nbi)
+  fmri.per.var[i] = model.var(bi.phat[i], ne) + model.var(nbi.phat[i], ne)
 }
-fmri.delta = abs(ips.phat - contr.phat)
+fmri.delta = abs(bi.phat - nbi.phat)
 fmri.mu = mean(fmri.delta)
-fmri.var = model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)
+fmri.var = model.var(mean(bi.phat), ne) + model.var(mean(nbi.phat), ne)
 ```
 
-We might want to visualize the distribution of $\delta = |\hat{p}_{contra} - \hat{p}_{ipsi}|$ under the analytical model and compare to our empirical model for functional and diffusion:
+We might want to visualize the distribution of $\delta = |\hat{p}_{b} - \hat{p}_{n}|$ under the analytical model and compare to our empirical model for functional and diffusion:
 
 ```{r}
 ne = 1225
@@ -506,7 +505,7 @@ ggplot(dat=dwi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution,
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta_D$')) +
-  ggtitle(TeX('Distribution of $\\delta_D = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta_D = |\\hat{p}_{b} - \\hat{p}_{n}|$, DWI'))
 ```
 
 ```{r}
@@ -519,7 +518,7 @@ ggplot(dat=fmri.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta_F$')) +
-  ggtitle(TeX('Distribution of $\\delta_F = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta_F = |\\hat{p}_{b} - \\hat{p}_{n}|$, fMRI'))
 ```
 
 Next, we look at the distributions, empirically and analytically, to see if there is a visually perceptible difference in the distribution of the populations $\delta_F$ and $\delta_D$ are from:
@@ -549,10 +548,10 @@ ggplot(dat=cmp.ana, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution,
 both the empirical and analytical results show clear separation of $\delta_D$ and $\delta_F$. Performing a $t-$test of this observation, we see:
 
 ```{r}
-t.test(dwi.delta, fmri.delta, alternative="greater", var.equal=FALSE)
+t.test(fmri.delta, dwi.delta, alternative="greater", var.equal=FALSE)
 ```
 
-which shows that with $p < 2.2 \times 10^{-16}$, the difference in connectivity ipsi-laterally vs. contra-laterally in diffusion connectomes exceeds the difference in connectivity ipsi-laterally vs contra-laterally in functional connectomes.
+which shows that with $p < 2.2 \times 10^{-16}$, the difference in connectivity bi-laterally vs. non bi-laterally in functional connectomes exceeds the difference in connectivity bi-laterally vs non bi-laterally in diffusion connectomes.
 
 ### Comparing p-value per subject of Functional vs Diffusion $\hat{\delta}$ (one p-value total)
 
@@ -581,7 +580,7 @@ for (i in 1:length(unique_subs)) {
   dwi.idxs = which(dwi.subjects == sub)
   for (fidx in fmri.idxs) {
     for (didx in dwi.idxs) {
-      pval <- ana.welch_ttest(dwi.delta[didx], fmri.delta[fidx], dwi.per.var[didx], fmri.per.var[fidx], ns=1, ns2=1, df=2)$p
+      pval <- ana.welch_ttest(fmri.delta[fidx], dwi.delta[didx], fmri.per.var[fidx], dwi.per.var[didx], ns=1, ns2=1, df=2)$p
       per.dwi.delta <- c(per.dwi.delta, dwi.delta[didx])
       per.fmri.delta <- c(per.fmri.delta, fmri.delta[fidx])
       per.p <- c(per.p, pval)
@@ -607,24 +606,13 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   theme(axis.text.x = element_text(angle=45))
 ```
 
-As we can see, even at just the $2-$sample level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion vs. functional connectomes is significant in most connectomes ($99.64\%$). 
+As we can see, even at just the $2-$graph level, the difference in bi-lateral vs. non bi-lateral connectivity in the functional vs. diffusion connectomes is significant in most connectomes ($98.99\%$). 
 
 ##### Example of subject with $p > .05$
 
 ```{r}
-ix <- sort(p.failed, index.return=TRUE)$ix[1]
-dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
-fmfailed = fmri.graphs[fmri.failed[ix],,]
-fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
-                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
-                      legend.name = "connection")
-fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
-                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
-                      legend.name = "connection", limits=c(0, 2500))
-```
-
-```{r}
-ix <- sort(p.failed, index.return=TRUE)$ix[2]
+sort_p <- sort(p.failed, index.return=TRUE, decreasing = TRUE)
+ix = sort_p$ix[1]
 dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
 fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
 fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
@@ -633,12 +621,28 @@ fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
 fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
                       title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
                       legend.name = "connection")
+print(sort_p$x[1])
+```
+As we can see, this subject appears to be noise.
+
+```{r}
+sort_p <- sort(p.failed, index.return=TRUE, decreasing = TRUE)
+ix = sort_p$ix[2]
+dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
+fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
+fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
+                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
+                      legend.name = "connection")
+fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
+                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
+                      legend.name = "connection")
+print(sort_p$x[2])
 ```
 
 Below, we visualize the difference $\delta_D - \delta_F$ between each pair of connectomes, and investigate the result in the $p-$value:
 
 ```{r}
-batch.dat <- data.frame(diff= per.dwi.delta - per.fmri.delta, p = per.p, dataset=per.dataset)
+batch.dat <- data.frame(diff= per.fmri.delta - per.dwi.delta, p = per.p, dataset=per.dataset)
 batch.dat$dataset <- factor(batch.dat$dataset)
 ggplot(batch.dat, aes(x=diff, y=p, color=dataset, group=dataset, shape=dataset)) +
   geom_point() +
@@ -649,29 +653,22 @@ ggplot(batch.dat, aes(x=diff, y=p, color=dataset, group=dataset, shape=dataset))
 
 ### Aggregated
 
-Here, we aggregate all of the edge weights ipsilaterally and contralaterally, along with the number of edges this information is aggregated over for each connection type. We feed this into a simple t-test with the appropriate assumptions (unequal variance, goal is to test for ipsilateral connectivity exceeding contralateral connectivity):
-
-### Functional
+Here, we aggregate all of the edge weights bilaterally and non bilaterally, along with the number of edges this information is aggregated over for each connection type. We feed this into a simple t-test with the appropriate assumptions (unequal variance, goal is to test for bilateral connectivity exceeding non bilateral connectivity):
 
 ```{r}
-fips = c(fmri_thresh[group1, group1], fmri_thresh[group2, group2])
-fcontr = c(fmri_thresh[group1, group2], fmri_thresh[group2, group1])
-ips.p = mean(fips)
-contr.p = mean(fcontr)
+fbi = c(fmri_thresh[group1])
+fnbi = c(fmri_thresh[group2])
+f.bi.p = mean(fbi)
+f.nbi.p = mean(fnbi)
 
-ana.welch_ttest(ips.p, contr.p, length(fips), length(fcontr), ns1=1, ns2=1, df = 2)
+
+dbi = c(dwi_thresh[group1])
+dnbi = c(dwi_thresh[group2])
+d.bi.p = mean(dbi)
+d.nbi.p = mean(dnbi)
+
+ana.welch_ttest(abs(f.bi.p - f.nbi.p), abs(d.bi.p - d.nbi.p),model.var(f.bi.p, ne) + model.var(f.nbi.p, ne),
+                model.var(d.bi.p, ne) + model.var(d.nbi.p, ne), ns1=1, ns2=1, df = 2)
 ```
 
-### Diffusion
-
-```{r}
-dips = c(dwi_thresh[group1, group1], dwi_thresh[group2, group2])
-dcontr = c(dwi_thresh[group1, group2], dwi_thresh[group2, group1])
-
-ips.p = mean(dips)
-contr.p = mean(dcontr)
-
-ana.welch_ttest(ips.p, contr.p, length(dips), length(dcontr), ns1=1, ns2=1, df = 2)
-```
-
-As we can see above, the diffusion connectome is significant with $p=.015$, whereas the functional connectome is significant with just $p=.057$. Note that for this test, we only have one observation of each $\hat{p}$, so we use a t-test but for the degrees of freedom to $1$ (since it would otherwise be 0). 
+As we can see above, with just 2 megamean graphs, we can determine a significant difference in the difference in connectivity bi-laterally vs non-bi-laterally in functional connectomes exceeds that of diffusion connectomes. 

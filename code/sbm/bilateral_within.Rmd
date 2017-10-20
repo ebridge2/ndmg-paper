@@ -405,26 +405,25 @@ fmriu.plot.plot_graph(fmri_thresh, include_diag = TRUE, title = "Mean Thresholde
 fmriu.plot.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded DWI Connectome", legend.name = "connection")
 ```
 
-## Blocked Data
-
-here, we will compute the probability of an edge existing in each of 4 quadrants (2 ipsilateral quadrants; 2 contralateral quadrants):
-
 ```{r}
-group1 = 1:35
-group2 = 36:70
-groups = list(group1, group2)
-fmri_block = block_data(fmri_thresh, groups)
-dwi_block = block_data(dwi_thresh, groups)
 
-fmriu.plot.plot_graph(fmri_block, title = "Blocked Functional Connectome", xlabel = "Hemisphere",
-                      ylabel="Hemisphere", include_diag = TRUE, legend.name = "p")
-fmriu.plot.plot_graph(dwi_block, title = "Blocked DWI Connectome", xlabel = "Hemisphere",
-                      ylabel="Hemisphere", include_diag = TRUE, legend.name = "p")
+group1 = c()
+group2 = c()
+# loop over all possible edges to get the indices we want to examine
+for (i in 1:70) {
+  for (j in 1:70) {
+    idx = i + 70*(j - 1)
+    if (abs(i - j) == 35) {  # if this is a bi-lateral edge
+      group1 <- c(group1, idx)
+    } else if (i != j) {
+      group2 <- c(group2, idx)
+    }  # don't count self-loops
+  }
+}
 ```
-dwi.distr.emp.mod = density(as.numeric(dwi.delta))
 
 
-## Difference in Ipsilateral vs. Contralateral Connectivity
+## Difference in Bi-Lateral vs. Non Bi-Lateral Connectivity
 
 ### Per-Connectome
 
@@ -445,26 +444,27 @@ datasets = graphobj$dataset
 ##### Comparing Distributions of ipsi-lateral and contra-lateral $\hat{p}$ (one p-value total)
 
 ```{r}
-ips.phat = array(NaN, dim=c(dim(graphs)[1]))
-contr.phat = array(NaN, dim=c(dim(graphs)[1]))
+bi.phat = array(NaN, dim=c(dim(graphs)[1]))
+nbi.phat = array(NaN, dim=c(dim(graphs)[1]))
 per.p = array(NaN, dim=c(dim(graphs)[1]))
 for (i in 1:dim(graphs)[1]) {
-  gr = thresh_matrix(graphs[i,,])
-  ips = c(gr[group1, group1], gr[group2, group2])
-  contr = c(gr[group1, group2], gr[group2, group1])
-  ips.phat[i] = mean(ips)
-  contr.phat[i] = mean(contr)
-  per.p[i] = ana.welch_ttest(ips.phat[i], contr.phat[i], length(ips), length(contr), ns1=1, ns2=1, df = 1)$p
+  gr = thresh_matrix(graphs[i,,], thresh=0)
+  bi = c(gr[group1])
+  nbi = c(gr[group2])
+  bi.phat[i] = mean(bi)
+  nbi.phat[i] = mean(nbi)
+  per.p[i] = ana.welch_ttest(bi.phat[i], nbi.phat[i], length(bi), length(nbi), ns1=1, ns2=1, df = 1)$p
 }
 ```
-We might want to visualize the distribution of $\delta = |\hat{p}_{contra} - \hat{p}_{ipsi}|$ under the analytical model and compare to our empirical model:
+
+We might want to visualize the distribution of $\delta = |\hat{p}_{n} - \hat{p}_{b}|$ under the analytical model and compare to our empirical model:
 
 ```{r}
 ne = 1225
-diff.distr.emp.mod = density(as.numeric(ips.phat - contr.phat))
+diff.distr.emp.mod = density(as.numeric(bi.phat - nbi.phat))
 
 # variances sum
-diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(ips.phat - contr.phat)), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
+diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(bi.phat - nbi.phat)), sd=sqrt(model.var(mean(bi.phat), ne) + model.var(mean(nbi.phat), ne)))
 
 n_diff = length(diff.distr.emp.mod$x)
 diff.dat = data.frame(x = c(diff.distr.emp.mod$x, diff.distr.emp.mod$x), y = c(diff.distr.emp.mod$y, diff.distr.ana),
@@ -475,16 +475,16 @@ ggplot(dat=diff.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta$')) +
-  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{b} - \\hat{p}_{n}|$, DWI'))
 ```
 
 which clearly shows a strong difference in the mean contra-laterally compared to ipsi-laterally, as our $\delta$ is generally quite high. Performing a paired t-test between the ipsi-lateral and contra-lateral $\hat{p}$, we find:
 
 ```{r}
-t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
+t.test(bi.phat, nbi.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
 ```
 
-which as we can see, indicates a significant difference in ipsi-lateral connectivity compared to contra-lateral connectivity with $p < 2.2\times 10^{-16}$. However, in this case, we note that the model is not very representative of the actual data observed. This is likely due to the fact that much of the data (50%) is acquired from 2 of the sites, so there likely are strong batch-effects present in the $\hat{p}$.
+which as we can see, indicates a significant difference in bi-lateral connectivity compared to non bi-lateral connectivity with $p < 2.2\times 10^{-16}$. However, in this case, we note that the model is not very representative of the actual data observed. This is likely due to the fact that much of the data (50%) is acquired from 2 of the sites, so there likely are strong batch-effects present in the $\hat{p}$.
 
 ##### Computing p-value per-subject and looking at distribution of p-values (one p-value per-graph)
 
@@ -501,7 +501,7 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   theme(axis.text.x = element_text(angle=45))
 ```
 
-As we can see, with just $1$ graph, we still see that ipsi-lateral connectivity exceeds contra-lateral connectivity with $p < .05$ for all of the individual graphs.
+As we can see, with just $1$ graph, we are not able to appreciably differentiate bi-lateral from non bi-lateral connectivity. This is likely due to the small number of observations of bi-lateral edges with 1 graph.
 
 #### Functional
 
@@ -516,16 +516,16 @@ datasets = graphobj$dataset
 ```
 
 ```{r}
-ips.phat = array(NaN, dim=c(dim(graphs)[1]))
-contr.phat = array(NaN, dim=c(dim(graphs)[1]))
+bi.phat = array(NaN, dim=c(dim(graphs)[1]))
+nbi.phat = array(NaN, dim=c(dim(graphs)[1]))
 per.p = array(NaN, dim=c(dim(graphs)[1]))
 for (i in 1:dim(graphs)[1]) {
   gr = thresh_matrix(graphs[i,,])
-  ips = c(gr[group1, group1], gr[group2, group2])
-  contr = c(gr[group1, group2], gr[group2, group1])
-  ips.phat[i] = mean(ips)
-  contr.phat[i] = mean(contr)
-  per.p = ana.welch_ttest(ips.phat[i], contr.phat[i], length(ips), length(contr), ns1=1, ns2=1, df = 1)
+  bi = c(gr[group1])
+  nbi = c(gr[group2])
+  bi.phat[i] = mean(bi)
+  nbi.phat[i] = mean(nbi)
+  per.p[i] = ana.welch_ttest(bi.phat[i], nbi.phat[i], length(bi), length(nbi), ns1=1, ns2=1, df = 1)$p
 }
 ```
 
@@ -535,10 +535,10 @@ We might want to visualize the distribution of $\hat{p}_{contra}$ and $\hat{p}_{
 
 ```{r}
 ne = 1225
-diff.distr.emp.mod = density(as.numeric(ips.phat - contr.phat))
+diff.distr.emp.mod = density(as.numeric(bi.phat - nbi.phat))
 
 # variances sum
-diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(ips.phat - contr.phat)), sd=sqrt(model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)))
+diff.distr.ana = dnorm(diff.distr.emp.mod$x, mean=mean(abs(bi.phat - nbi.phat)), sd=sqrt(model.var(mean(bi.phat), ne) + model.var(mean(nbi.phat), ne)))
 
 n_diff = length(diff.distr.emp.mod$x)
 diff.dat = data.frame(x = c(diff.distr.emp.mod$x, diff.distr.emp.mod$x), y = c(diff.distr.emp.mod$y, diff.distr.ana),
@@ -549,16 +549,16 @@ ggplot(dat=diff.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta$')) +
-  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{b} - \\hat{p}_{n}|$, fMRI'))
 ```
 
-which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
+which clearly shows a strong difference in the means bi-laterally compared to non bi-laterally. Performing a t-test, we find:
 
 ```{r}
-t.test(ips.phat, contr.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
+t.test(bi.phat, nbi.phat, alternative="greater", var.equal=FALSE, paired=TRUE)
 ```
 
-similar to the diffusion connectomes, the functional connectomes again exhibit a difference in intr-lateral vs. contra-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. The fit here is much better, likely due to the fact that the largest site accounts for only 20% of the total data, and the second largest site just 10%, so fewer batch effects will be apparent compared to the diffusion data.
+similar to the diffusion connectomes, the functional connectomes exhibit a difference in bi-lateral vs. non bi-lateral connectivity that is significant with $p < 2.2\times 10^{-16}$. There appears to be significant batch effect in the data, as evinced by the patterns in the $\delta$ empirically.
 
 ##### Computing p-value per-subject and looking at distribution of p-values (one p-value per-graph)
 
@@ -575,8 +575,7 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   theme(axis.text.x = element_text(angle=45))
 ```
 
-As we can see, with just $1$ graph, we do not have nearly the confidence that the ipsi-lateral connectivity exceeds the contra-lateral connectivity that we did with the diffusion graphs.
-
+As we can see, with just $1$ graph, we still cannot differentiate bi-lateral from non bi-lateral connectivity, again likely due to the relatively small number of bi-lateral observations relative the non bi-lateral observations.
 
 ### Aggregated 
 
@@ -585,24 +584,24 @@ Here, we aggregate all of the edge weights ipsilaterally and contralaterally, al
 ### Functional
 
 ```{r}
-fips = c(fmri_thresh[group1, group1], fmri_thresh[group2, group2])
-fcontr = c(fmri_thresh[group1, group2], fmri_thresh[group2, group1])
-ips.p = mean(fips)
-contr.p = mean(fcontr)
+fbi = c(fmri_thresh[group1])
+fnbi = c(fmri_thresh[group2])
+bi.p = mean(fbi)
+nbi.p = mean(fnbi)
 
-ana.welch_ttest(ips.p, contr.p, length(fips), length(fcontr), ns1=1, ns2=1, df = 1)
+ana.welch_ttest(bi.p, nbi.p, length(bi), length(nbi), ns1=1, ns2=1, df = 1)
 ```
 
 ### Diffusion
 
 ```{r}
-dips = c(dwi_thresh[group1, group1], dwi_thresh[group2, group2])
-dcontr = c(dwi_thresh[group1, group2], dwi_thresh[group2, group1])
+dbi = c(dwi_thresh[group1])
+dnbi = c(dwi_thresh[group2])
 
-ips.p = mean(dips)
-contr.p = mean(dcontr)
+bi.p = mean(fbi)
+nbi.p = mean(fnbi)
 
-ana.welch_ttest(ips.p, contr.p, length(dips), length(dcontr), ns1=1, ns2=1, df = 1)
+ana.welch_ttest(bi.p, nbi.p, length(dbi), length(dnbi), ns1=1, ns2=1, df = 1)
 ```
 
-As we can see above, the diffusion connectome is significant with $p=.015$, whereas the functional connectome is significant with just $p=.057$. Note that for this test, we only have one observation of each $\hat{p}$, so we use a t-test but for the degrees of freedom to $1$ (since it would otherwise be 0). 
+As we can see above, neither the functional nor diffusion connectomes show a significantly appreciable difference in connectivity bi-laterally vs non bi-laterally with just 1 graph, whether that graph is a single subject or modality-specific megamean, likely due to the small number of observations of bi-lateral edges.

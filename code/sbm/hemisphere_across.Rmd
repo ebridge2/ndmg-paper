@@ -389,8 +389,11 @@ For the data, we compute the weighted mean functional (rank of each edge) and di
 ```{r}
 basepath = '/data/connectome_stats/'
 fmri_gr = read_graph(file.path(basepath, 'fmrimean_1709.edgelist'), format="ncol")
+vset <- V(fmri_gr)
+ordered_v <- order(vset)
+fmri_gr = read_graph(file.path(basepath, 'fmrimean_1709.edgelist'), format="ncol", predef=ordered_v)
 fmri_mean = get.adjacency(fmri_gr, type="both", sparse=FALSE, attr='weight')
-dwi_gr = read_graph(file.path(basepath, 'dwimean_2861.edgelist'), format="ncol")
+dwi_gr = read_graph(file.path(basepath, 'dwimean_2861.edgelist'), format="ncol", predef=ordered_v)
 dwi_mean = get.adjacency(dwi_gr, type="both", sparse=FALSE, attr='weight')
 
 fmri_thresh = thresh_matrix(fmri_mean)
@@ -443,7 +446,7 @@ ips.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 contr.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 dwi.per.var = array(NaN, dim=c(dim(dwi.graphs)[1]))
 for (i in 1:dim(dwi.graphs)[1]) {
-  gr = thresh_matrix(dwi.graphs[i,,])
+  gr = thresh_matrix(dwi.graphs[i,,], thresh=0)
   ips = c(gr[group1, group1], gr[group2, group2])
   contr = c(gr[group1, group2], gr[group2, group1])
   ips.phat[i] = mean(ips)
@@ -519,7 +522,7 @@ ggplot(dat=fmri.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta_F$')) +
-  ggtitle(TeX('Distribution of $\\delta_F = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta_F = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, fMRI'))
 ```
 
 Next, we look at the distributions, empirically and analytically, to see if there is a visually perceptible difference in the distribution of the populations $\delta_F$ and $\delta_D$ are from:
@@ -607,24 +610,13 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   theme(axis.text.x = element_text(angle=45))
 ```
 
-As we can see, even at just the $2-$sample level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion vs. functional connectomes is significant in most connectomes ($99.64\%$). 
+As we can see, even at just the $2-$graph level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion vs. functional connectomes is significant in most connectomes ($99.64\%$). 
 
 ##### Example of subject with $p > .05$
 
 ```{r}
-ix <- sort(p.failed, index.return=TRUE)$ix[1]
-dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
-fmfailed = fmri.graphs[fmri.failed[ix],,]
-fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
-                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
-                      legend.name = "connection")
-fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
-                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
-                      legend.name = "connection", limits=c(0, 2500))
-```
-
-```{r}
-ix <- sort(p.failed, index.return=TRUE)$ix[2]
+sort_p <- sort(p.failed, index.return=TRUE, decreasing = TRUE)
+ix = sort_p$ix[1]
 dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
 fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
 fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
@@ -633,6 +625,21 @@ fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
 fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
                       title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
                       legend.name = "connection")
+print(sort_p$x[1])
+```
+
+```{r}
+sort_p <- sort(p.failed, index.return=TRUE, decreasing = TRUE)
+ix = sort_p$ix[2]
+dwfailed = thresh_matrix(dwi.graphs[dwi.failed[ix],,], thresh=0)
+fmfailed = thresh_matrix(fmri.graphs[fmri.failed[ix],,])
+fmriu.plot.plot_graph(dwfailed, include_diag = TRUE,
+                      title = sprintf("DWI subject %s, delta=%.3f", as.character(dwi.subjects[dwi.failed[ix]]), dwi.delta[dwi.failed[ix]]),
+                      legend.name = "connection")
+fmriu.plot.plot_graph(fmfailed, include_diag = TRUE,
+                      title = sprintf("fMRI subject %s, delta=%.3f", as.character(fmri.subjects[fmri.failed[ix]]), fmri.delta[fmri.failed[ix]]),
+                      legend.name = "connection")
+print(sort_p$x[2])
 ```
 
 Below, we visualize the difference $\delta_D - \delta_F$ between each pair of connectomes, and investigate the result in the $p-$value:
@@ -651,27 +658,19 @@ ggplot(batch.dat, aes(x=diff, y=p, color=dataset, group=dataset, shape=dataset))
 
 Here, we aggregate all of the edge weights ipsilaterally and contralaterally, along with the number of edges this information is aggregated over for each connection type. We feed this into a simple t-test with the appropriate assumptions (unequal variance, goal is to test for ipsilateral connectivity exceeding contralateral connectivity):
 
-### Functional
-
 ```{r}
 fips = c(fmri_thresh[group1, group1], fmri_thresh[group2, group2])
 fcontr = c(fmri_thresh[group1, group2], fmri_thresh[group2, group1])
-ips.p = mean(fips)
-contr.p = mean(fcontr)
+f.ips.p = mean(fips)
+f.contr.p = mean(fcontr)
 
-ana.welch_ttest(ips.p, contr.p, length(fips), length(fcontr), ns1=1, ns2=1, df = 2)
-```
-
-### Diffusion
-
-```{r}
 dips = c(dwi_thresh[group1, group1], dwi_thresh[group2, group2])
 dcontr = c(dwi_thresh[group1, group2], dwi_thresh[group2, group1])
+d.ips.p = mean(dips)
+d.contr.p = mean(dcontr)
 
-ips.p = mean(dips)
-contr.p = mean(dcontr)
-
-ana.welch_ttest(ips.p, contr.p, length(dips), length(dcontr), ns1=1, ns2=1, df = 2)
+ana.welch_ttest(abs(d.ips.p - d.contr.p), abs(f.ips.p - f.contr.p), model.var(d.ips.p, ne) + model.var(d.contr.p, ne),
+                model.var(f.ips.p, ne) + model.var(f.contr.p, ne), ns1=1, ns2=1, df = 2)
 ```
 
-As we can see above, the diffusion connectome is significant with $p=.015$, whereas the functional connectome is significant with just $p=.057$. Note that for this test, we only have one observation of each $\hat{p}$, so we use a t-test but for the degrees of freedom to $1$ (since it would otherwise be 0). 
+As we can see, with just 2 megamean graphs, we can identify a significant difference in the difference in connectivity ipsi-laterally vs bi-laterally in functional vs. diffusion connectomes.

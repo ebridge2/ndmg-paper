@@ -395,8 +395,11 @@ For the data, we compute the weighted mean functional (rank of each edge) and di
 ```{r}
 basepath = '/data/connectome_stats/'
 fmri_gr = read_graph(file.path(basepath, 'fmrimean_1709.edgelist'), format="ncol")
+vset <- V(fmri_gr)
+ordered_v <- order(vset)
+fmri_gr = read_graph(file.path(basepath, 'fmrimean_1709.edgelist'), format="ncol", predef=ordered_v)
 fmri_mean = get.adjacency(fmri_gr, type="both", sparse=FALSE, attr='weight')
-dwi_gr = read_graph(file.path(basepath, 'dwimean_2861.edgelist'), format="ncol")
+dwi_gr = read_graph(file.path(basepath, 'dwimean_2861.edgelist'), format="ncol", predef=ordered_v)
 dwi_mean = get.adjacency(dwi_gr, type="both", sparse=FALSE, attr='weight')
 
 fmri_thresh = thresh_matrix(fmri_mean)
@@ -450,7 +453,7 @@ ips.phat = array(NaN, dim=c(dim(graphs)[1]))
 contr.phat = array(NaN, dim=c(dim(graphs)[1]))
 per.p = array(NaN, dim=c(dim(graphs)[1]))
 for (i in 1:dim(graphs)[1]) {
-  gr = thresh_matrix(graphs[i,,])
+  gr = thresh_matrix(graphs[i,,], thresh=0)
   ips = c(gr[group1, group1], gr[group2, group2])
   contr = c(gr[group1, group2], gr[group2, group1])
   ips.phat[i] = mean(ips)
@@ -550,7 +553,7 @@ ggplot(dat=diff.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution
   geom_ribbon(ymin=0, alpha=0.5) +
   ylab('Density') +
   xlab(TeX('$\\delta$')) +
-  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, DWI'))
+  ggtitle(TeX('Distribution of $\\delta = |\\hat{p}_{ipsi} - \\hat{p}_{contr}|$, fMRI'))
 ```
 
 which clearly shows a strong difference in the means contra-laterally compared to ipsi-laterally. Performing a t-test, we find:
