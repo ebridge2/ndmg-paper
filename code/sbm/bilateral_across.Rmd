@@ -21,9 +21,11 @@ Given:
 
 + $n$ samples of graphs, $G_1 = \left\{(g_i)\right\}_{i=1}^n$ from one population, and $m$ samples of graphs, $G_2 = \left\{(g_i)\right\}_{i=1}^m$.
 + A graph, $g_i \in G_j$, where $g_i  = (E, V, w)$ for $N=|V|$ regions of interest and $w(v_i, v_j) = w_{ij}$.
-+ a partitioning of the vertices into $C_1$, the left hemisphere ROIs, and $C_2$, the right hemisphere ROIs, where $C_1 \cup C_2 = V$.
++ a partitioning of the edges into $E_1$ and $E_2$, where $E_1 \cup E_2 = E$ and $E_1 \cap E_2 = \emptyset$.
 
-Determine if there exists a difference in the connectivity among the vertices in $C_1$ and $C_2$ between our two collections of graphs $G_1$ and $G_2$, for functional vs diffusion connectomes.
+1. Does the connectivity for the edges $E_1$ exceed those of $E_2$ within a particular modality?
+2. Does the difference in connectivity for the edges $E_1$ and $E_2$ of one modality exceed that of another modality?
+
 
 ## Statistical Model
 
@@ -32,12 +34,12 @@ Assume we have a random variable $A$ which can be characterized by the Stochasti
 \begin{align*}
 	A \sim SBM(G, B)
 \end{align*}
-
-where $G$ is a grouping of the $N$ vertices in our graph into our respective communities and $B$ represents the parameters for within and between group edge probabilities. Assume that the number of edges in each subgraph are binomially distributed with the parameter $p$, we can estimate the number of edges for each group with the pmf (noting that in our case, we are given $n$ and $k$ a priori):
+    
+where $G$ is a grouping of the $N$ vertices in our graph into $C$ communities $V_i$ where $\bigcup\limits_{i=1}^{C} V_i = V$, and $V_i \cap V_j = \emptyset$ for all $i \neq j$. $B$ represents the parameters for within and between group edge probabilities. Assume that the number of edges in each subgraph are binomially distributed with the parameter $p$, we can estimate the number of edges for each group with the pmf (noting that in our case, we are given $n$ and $k$ a priori):
 
 \begin{align*}
   f_B(p | n, k) &= \begin{pmatrix}n \\ k\end{pmatrix}p^k (1 - p)^{n - k}
-\end{align*}  
+\end{align*}
 
 Then the likelihood function is of the form:
 
@@ -54,7 +56,7 @@ Maximizing with respect to $p$:
     \hat{p} &= \mathbb{E}[p] = \frac{k}{n}
 \end{align*}
 
-to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial distribution can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
+to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial distriibution can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
@@ -69,55 +71,63 @@ Then:
   Var(\hat{p}) &= \frac{1}{n^2}Var(k) = \frac{\hat{p}(1-\hat{p})}{n}
 \end{align*}
 
-where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections between community $C_l$ and $C_m$ can be modelled iid:
+where $p$ is the probability of a given edge, $k$ are the number of connected edges, and $n$ is the number of possible edges. We can therefore define an estimator of $B$, $\hat{B}$ where connections between community $V_l$ and $V_m$ can be modelled iid:
 
 \begin{align*}
   \hat{B}_{lm} &= \mathcal{N}(\mu_{lm}, \sigma_{lm})
 \end{align*}
 
-where $\hat{\mu}_{lm} = \frac{1}{\left|C_l \times C_m\right|}sum_{(i, j) \in E(C_l \times C_m)} A_{ij}$, and $\hat{\sigma}^2_{lm} = \frac{\hat{\mu}_{lm}(1 - \hat{\mu}_{lm})}{\left|C_l \times C_m\right|}$.
+where $\hat{\mu}_{lm} = \frac{1}{\left|C_l \times C_m\right|}\sum_{(i, j) \in E(C_l \times C_m)} A_{ij}$, and $\hat{\sigma}^2_{lm} = \frac{\hat{\mu}_{lm}(1 - \hat{\mu}_{lm})}{\left|C_l \times C_m\right|}$.
 
-Grouping our vertices into the left and right hemispheres, under the above model we end up with:
+Assuming our edges are iid, we can generalize the above model very simply by instead of considering our vertices to exist in communities, placing our edges into two communities $E_1$ and $E_2$, where $E_1 \cup E_2 = E$ and $E_1 \cap E_2 = \null$. In a 2 edge-community model, we can simplify:
 
 \begin{align*}
-  
-	\hat{B} &\sim \mathcal{N}\left(\mu_B, \Sigma_B\right) \\
+	A \sim SEM(G, B)
+\end{align*}
+
+where $G$ is a grouping of our $N^2$ possible edges into $C$ communities $E_i$ where $\bigcup\limits_{i=1}^{C} E_i = E$, and $E_i \cap E_j = \emptyset$ for all $i \neq j$. $B$ represents the parameters for within and between group edge probabilities.
+
+Then we can define an estimator for $B$ as follows:
+
+\begin{align*}
+	\hat{B}  \sim \mathcal{N}(\mu_B, \Sigma_B)
+\end{align*}
+
+where:
+
+\begin{align*}
+	\mu_B^{(k)} &= p_k = \frac{1}{|E_k|} \sum_{(i, j) \in E_k} M_{ij} \\
+    \sigma_B^{(k)} &= \frac{p_k(1 - p_k)}{|E_k|}
+\end{align*}
+
+In a 2-community case (as studied here):
+
+\begin{align*}
     \hat{\mu}_B &= \begin{bmatrix}
-    	p_{ll} \\ p_{rl} \\
-        p_{lr} \\ p_{rr}
+    	p_{1} \\
+        p_{2} 
     \end{bmatrix} \\
     \hat{\Sigma}_B &= \begin{bmatrix}
-    	\frac{p_{ll}(1 - p_{ll})}{\left(\frac{N}{2}\right)^2} & 0 & 0 & 0 \\
-    	0 & \frac{p_{rl}(1 - p_{rl})}{\left(\frac{N}{2}\right)^2} & 0 & 0 \\
-    	0 & 0 & \frac{p_{lr}(1 - p_{lr})}{\left(\frac{N}{2}\right)^2} & 0 \\
-    	0 & 0 & 0 & \frac{p_{rr}(1 - p_{rr})}{\left(\frac{N}{2}\right)^2} \\
+    	\frac{p_{1}(1 - p_{1})}{|E_1|} & 0 \\
+    	0 & \frac{p_{2}(1 - p_{2})}{|E_2|}
+    \end{bmatrix} = \begin{bmatrix}
+    	\sigma_{p_1} & 0 \\
+        0 & \sigma_{p_2}
     \end{bmatrix}
 \end{align*}
 
-Generalizing under the independent edge model, we can simplify:
+where $p_j$ represents the probability of an edge in the $j^{th}$ edge-community, and $\sigma_j$ the variance of edges in that particular edge-community. Then given a connectome as an adjacency matrix $M \in \left\{0, 1\right\}^{N \times N}$ with $N$ vertices, we can compute estimators as follows:
 
 \begin{align*}
-    \hat{\mu}_B &= \begin{bmatrix}
-    	p_{b} \\
-        p_{n} 
-    \end{bmatrix} \\
-    \hat{\Sigma}_B &= \begin{bmatrix}
-    	\frac{p_{b}(1 - p_{b})}{\left(\frac{N}{2}\right)^2} & 0 \\
-    	0 & \frac{p_{n}(1 - p_{n})}{\left(\frac{N}{2}\right)^2}
-    \end{bmatrix}
+	E_1 &= \left\{(i, j): \textrm{edge }(i, j) \in E_1\right\} \\
+	E_2 &= \left\{(i, j): \textrm{edge }(i, j) \in E_2\right\} \\
+    \hat{p}_1 &= \frac{1}{|E_1|} \sum_{(i, j) \in E_1} M_{ij} \\
+    \hat{p}_2 &= \frac{1}{|E_2|} \sum_{(i, j) \in E_2} M_{ij} \\
+    \sigma_{\hat{p}_1} &= s_1 = \frac{p_{1}(1 - p_{1})}{|E_1|} \\
+    \sigma_{\hat{p}_2} &= s_2 = \frac{p_{2}(1 - p_{2})}{|E_2|}
 \end{align*}
 
-where $p_b$ represents the probability of a bi-lateral connection, and $p_n$ the probability of a non bi-lateral connection. Then given the connectome megamean as an adjacency matrix $M \in \left\{0, 1\right\}^{N \times N}$ with $N$ vertices, we can compute $p_b$ and $p_n$ as follows:
-
-\begin{align*}
-	B &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are the same region in opposite hemispheres}\right\} \\
-	N &= \left\{(i, j): \textrm{vertex $i$ and vertex $j$ are not the same region in opposite hemispheres}\right\} \\
-    p_i &= \frac{1}{|B|} \sum_{(i, j) \in B} M_{ij} \\
-    p_c &= \frac{1}{|N|} \sum_{(i, j) \in N} M_{ij}
-\end{align*}
-
-Then we have $\delta = |p_b - p_n|$ representing the difference in connectivity from bi-lateral to non bi-lateral. 
-
+Then we have $\delta = |p_1 - p_2|$ representing the difference in connectivity from $E_1$ to $E_2$.
 ## Statistical Goal
 
 Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of graphs, let $H_0: \delta_1 <= \delta_2$, and $H_A: \delta_1 > \delta_2$, determine:
@@ -127,6 +137,8 @@ Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of gra
 \end{align*}
 
 That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ is less than or equal to the difference in connectivity in the graphs of $G_2$. 
+
+For this notebook, we will investigate with $E_1$ as the bilateral edges, and $E_2$ as the non-bilateral edges.
 
 ## Test Statistic
 
@@ -186,6 +198,14 @@ Compute_Power(n, diffs, sig=.95):
 ```
 
 # Simulations
+
+To run the below code, the user must have several packages installed. From an R session, these can be installed with:
+
+```{r, eval=False}
+install.packages(c('ggplot2', 'latex2exp', 'igraph', 'devtools'))
+require(devtools)
+install_github('neurodata/fmriutils')
+```
 
 ## Simulated Data
 
@@ -381,6 +401,29 @@ ggplot(dat, aes(x = diff, y = tdiff, group=ns, color=ns)) +
 ```
 
 # Real Data Experiments
+
+To download the data required to produce the below plots, from a terminal session:
+
+```
+sudo mkdir /data/
+sudo chmod -R 777 /data
+
+cd /data
+wget http://openconnecto.me/mrdata/share/derivatives/dwi_edgelists.tar.gz
+wget http://openconnecto.me/mrdata/share/derivatives/fmri_edgelists.tar.gz
+wget http://openconnecto.me/mrdata/share/connectome_stats/connectome_stats.zip
+
+mkdir -p /data/connectome_stats /data/dwi/edgelists /data/fmri/ranked/edgelists
+mv dwi_edgelists.tar.gz /data/dwi/edgelists
+cd /data/dwi/edgelists
+tar -xvzf dwi_edgelists.tar.gz
+mv /data/fmri_edgelists.tar.gz /data/fmri/ranked/edgelists
+cd /data/fmri/ranked/edgelists
+tar -xvzf fmri_edgelists.tar.gz
+mv /data/connectome_stats.zip /data/connectome_stats.zip
+cd /data/connectome_stats
+unzip connectome_stats.zip
+```
 
 ## Raw Data
 
