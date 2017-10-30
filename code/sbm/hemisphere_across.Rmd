@@ -54,7 +54,7 @@ Maximizing with respect to $p$:
     \hat{p} &= \mathbb{E}[p] = \frac{k}{n}
 \end{align*}
 
-to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial theorem can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
+to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial distriibution can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
@@ -434,7 +434,7 @@ dwi.atlas = 'desikan'
 dwi.basepath = '/data/dwi/edgelists'
 
 graphobj = fmriu.io.collection.open_graphs(basepath = dwi.basepath, atlases = dwi.atlas, datasets = dwi.dsets,
-                                           gname = 'ndmg_0-0-48/graphs', fmt='edgelist', rtype = 'array')
+                                           gname = 'graphs', fmt='edgelist', rtype = 'array')
 dwi.graphs = graphobj$graphs
 dwi.datasets = graphobj$dataset
 dwi.subjects = graphobj$subjects
@@ -463,7 +463,7 @@ dwi.var = model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)
 ```{r}
 fmri.dsets = c('BNU1', 'BNU2', 'BNU3', 'HNU1', 'IBATRT', 'IPCAS1', 'IPCAS2', 'IPCAS5', 'IPCAS6', 'IPCAS8', 'MRN1', 'NYU1', 'SWU1', 'SWU2', 'SWU3', 'SWU4', 'UWM', 'XHCUMS')
 fmri.atlas = 'desikan-2mm'
-fmri.basepath = '/data/fmri_edgelists'
+fmri.basepath = '/data/fmri/ranked/edgelists/'
 
 graphobj = fmriu.io.collection.open_graphs(basepath = fmri.basepath, atlases = fmri.atlas, datasets=fmri.dsets, fmt='edgelist', rtype = 'array')
 fmri.graphs = graphobj$graphs
@@ -604,7 +604,7 @@ p.dat$dataset <- factor(p.dat$dataset)
 ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   geom_jitter() +
   coord_trans(y = "log10") +
-  ggtitle(TeX(sprintf('Per-subject P-value (2 graphs), %.2f percent have $p < .05$', 100*sum(per.p < .05)/length(per.p)))) +
+  ggtitle(TeX(sprintf('Hemispheric Inter-Modality, %.2f percent have $p < .05$', 100*sum(per.p < .05)/length(per.p)))) +
   xlab('Dataset') +
   ylab('p-value') +
   theme(axis.text.x = element_text(angle=45))

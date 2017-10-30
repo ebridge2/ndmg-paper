@@ -54,7 +54,7 @@ Maximizing with respect to $p$:
     \hat{p} &= \mathbb{E}[p] = \frac{k}{n}
 \end{align*}
 
-to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial theorem can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
+to get the variance term, we note that $\hat{p} = \frac{k}{n}$, so then $Var(p) = Var\left(\frac{k}{n}\right) = \frac{1}{n^2} Var(k)$. The binomial distribution can be thought of as an aggregation of $n$ independent bernoulli trials with probability $p$; that is, $X_i \overset{iid}{\sim} Bern(p)$ where $\mathbb{E}\left[X_i\right] = p$. Given that the variance of independent events sum, we can expand:
 
 \begin{align*}
   Var(\sum_{i=1}^n X_i) &= \sum_{i=1}^n Var(X_i) = \sum_{i=1}^n E\left[X_i^2\right] - E\left[X_i\right]^2 \\
