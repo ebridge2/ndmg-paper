@@ -1,3 +1,7 @@
 [submodule "manuscript"]
 	path = manuscript
 	url = https://git.overleaf.com/5423064pxykyh
+[submodule "11221360ccrvjynyxcbb"]
+	path = 11221360ccrvjynyxcbb
+	url = https://git.overleaf.com/11221360ccrvjynyxcbb
+	branch = master

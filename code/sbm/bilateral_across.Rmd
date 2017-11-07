@@ -201,7 +201,7 @@ Compute_Power(n, diffs, sig=.95):
 
 To run the below code, the user must have several packages installed. From an R session, these can be installed with:
 
-```{r, eval=False}
+```{r, eval=FALSE}
 install.packages(c('ggplot2', 'latex2exp', 'igraph', 'devtools'))
 require(devtools)
 install_github('neurodata/fmriutils')
