@@ -79,10 +79,10 @@ where $p$ is the probability of a given edge, $k$ are the number of connected ed
 
 where $\hat{\mu}_{lm} = \frac{1}{\left|C_l \times C_m\right|}\sum_{(i, j) \in E(C_l \times C_m)} A_{ij}$, and $\hat{\sigma}^2_{lm} = \frac{\hat{\mu}_{lm}(1 - \hat{\mu}_{lm})}{\left|C_l \times C_m\right|}$.
 
-Assuming our edges are iid, we can generalize the above model very simply by instead of considering our vertices to exist in communities, placing our edges into two communities $E_1$ and $E_2$, where $E_1 \cup E_2 = E$ and $E_1 \cap E_2 = \null$. In a 2 edge-community model, we can simplify:
+Assuming our edges are iid, we can generalize the above model very simply by instead of considering our vertices to exist in communities, placing our edges into two communities $E_1$ and $E_2$, where $E_1 \cup E_2 = E$ and $E_1 \cap E_2 = \null$. We propose the structured independent-edge model:
 
 \begin{align*}
-	A \sim SEM(G, B)
+	A \sim SIEM(G, B)
 \end{align*}
 
 where $G$ is a grouping of our $N^2$ possible edges into $C$ communities $E_i$ where $\bigcup\limits_{i=1}^{C} E_i = E$, and $E_i \cap E_j = \emptyset$ for all $i \neq j$. $B$ represents the parameters for within and between group edge probabilities.
@@ -99,6 +99,8 @@ where:
 	\mu_B^{(k)} &= p_k = \frac{1}{|E_k|} \sum_{(i, j) \in E_k} M_{ij} \\
     \sigma_B^{(k)} &= \frac{p_k(1 - p_k)}{|E_k|}
 \end{align*}
+
+given some adjacency representation of a graph $M \in \left\{0, 1\right\}^{N \times N}$.
 
 In a 2-community case (as studied here):
 
@@ -127,10 +129,11 @@ where $p_j$ represents the probability of an edge in the $j^{th}$ edge-community
     \sigma_{\hat{p}_2} &= s_2 = \frac{p_{2}(1 - p_{2})}{|E_2|}
 \end{align*}
 
-Then we have $\delta = |p_1 - p_2|$ representing the difference in connectivity from $E_1$ to $E_2$.
+Then we have $\delta = p_1 - p_2$ representing the difference in connectivity from $E_1$ to $E_2$. For these experiments, we will let $E_1$ be the ipsi-lateral edges, and $E_2$ the contra-lateral edges.
+
 ## Statistical Goal
 
-Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of graphs, let $H_0: \delta_1 <= \delta_2$, and $H_A: \delta_1 > \delta_2$, determine:
+Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of graphs, and $p_{j, i}$ the probability of an edge for the $j^{th}$ edge community in the $i^{th}$ group of graphs, let $H_0: \delta_1 <= \delta_2$, and $H_A: \delta_1 > \delta_2$, determine:
 
 \begin{align*}
   \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
@@ -140,16 +143,6 @@ That is, determine the probability of incorrectly rejecting the null hypothesis 
 
 For this notebook, we will investigate with $E_1$ as the ipsi-lateral edges, and $E_2$ as the contra-lateral edges.
 
-## Statistical Goal
-
-Where $\delta_i$ is the difference in connectivity for the $i^{th}$ group of graphs, let $H_0: \delta_1 <= \delta_2$, and $H_A: \delta_1 > \delta_2$, determine:
-
-\begin{align*}
-  \mathbb{P}(\textrm{reject $H_0$ in favor of $H_A$ | $H_0$ is true})
-\end{align*}
-
-That is, determine the probability of incorrectly rejecting the null hypothesis that the difference in connectivity in the graphs of $G1$ is less than or equal to the difference in connectivity in the graphs of $G_2$. 
-
 ## Test Statistic
 
 [Welch's T-Test](https://en.wikipedia.org/wiki/Welch%27s_t-test) for testing whether populations have equal means given that they have different variances in the univariate case.
@@ -158,15 +151,13 @@ That is, determine the probability of incorrectly rejecting the null hypothesis 
     T = \frac{\bar{\delta}_1 - \bar{\delta}_2}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}
 \end{align*}
 
-Since our random variables are all assumed to be independent (covariance terms are all zero), we can assume that $s_1 = \sigma_{\hat{\delta}_1}^2 = \Sigma_{11, 1} + \Sigma_{22, 1}$, and $s_2 = \sigma_{\hat{\delta}_2}^2 =  \Sigma_{11, 2} + \Sigma_{22, 2}$$.
+Since our random variables are all assumed to be independent (covariance terms are all zero), we can assume that $s_1^2 = \sigma_{\hat{\delta}_1}^2 = \sigma^2_{\hat{p}_1, 1} + \sigma^2_{\hat{p}_2, 1}$, and $s_2^2 = \sigma_{\hat{\delta}_2}^2  = \sigma^2_{\hat{p}_1, 2} + \sigma^2_{\hat{p}_2, 2}$.
 
 and the degrees of freedom can be calculated as follows:
 
 \begin{align*}
-    \nu &= \frac{\left(\frac{s_I^2}{n_1} + \frac{s_C^2}{n_2}\right)^2}{\frac{s_1^4}{n_1^2 \nu_1} + \frac{s_2^4}{n_2^2\nu_2}}
+    \nu &= \frac{\left(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}\right)^2}{\frac{s_1^4}{n_1^2 \nu_1} + \frac{s_2^4}{n_2^2\nu_2}}
 \end{align*}
-
-where the standard deviation $s_j = \sqrt{\frac{p_j(1 - p_j)}{\left(\frac{N}{2}\right)^2}}$
 
 where $\nu_1 = n_1 - 1, \; \nu_2 = n_2 - 1$.
 
@@ -184,11 +175,12 @@ where $p(x, df)$ is the pdf for the $T$ distribution with degrees of freedom $df
 
 ## Statistical Power
 
-1) The statistical power can be computed as the inverse of the probability of making a Type II ($\beta$) error. A type II error can be defined as follows:
+1) The statistical power can be computed as the inverse of the probability of making a Type II ($\beta$) error, $1 - \beta$. A type II error can be defined as follows:
 
 \begin{align*}
-    \beta = \mathbb{P}(\textrm{reject $H_A$ in favor of $H_0$ | $H_A$ is true}) = \mathbb{P}(T_{observed} > T_{critical})
+    \beta = \mathbb{P}(\textrm{reject $H_A$ in favor of $H_0$ | $H_A$ is true}) = \mathbb{P}(T_{observed} < T_{critical})
 \end{align*}
+
 
 where $T_{critical}$ is the test-statistic at the given level of significance $\alpha$ specified by our test. To compute the power, we will compute the rejection cutoff for the test-statistic, and then simulate data under the alternative hypothesis, and see how many times we would reject the null hypothesis in our simulated data. In pseudo-code:
 
@@ -414,27 +406,6 @@ ggplot(dat, aes(x = diff, y = tdiff, group=ns, color=ns)) +
 
 To download the data required to produce the below plots, from a terminal session:
 
-```
-sudo mkdir /data/
-sudo chmod -R 777 /data
-
-cd /data
-wget http://openconnecto.me/mrdata/share/derivatives/dwi_edgelists.tar.gz
-wget http://openconnecto.me/mrdata/share/derivatives/fmri_edgelists.tar.gz
-wget http://openconnecto.me/mrdata/share/connectome_stats/connectome_stats.zip
-
-mkdir -p /data/connectome_stats /data/dwi/edgelists /data/fmri/ranked/edgelists
-mv dwi_edgelists.tar.gz /data/dwi/edgelists
-cd /data/dwi/edgelists
-tar -xvzf dwi_edgelists.tar.gz
-mv /data/fmri_edgelists.tar.gz /data/fmri/ranked/edgelists
-cd /data/fmri/ranked/edgelists
-tar -xvzf fmri_edgelists.tar.gz
-mv /data/connectome_stats.zip /data/connectome_stats.zip
-cd /data/connectome_stats
-unzip connectome_stats.zip
-```
-
 ## Raw Data
 
 For the data, we compute the weighted mean functional (rank of each edge) and diffusion (number of fibers). For the functional connectome, we threshold such that the largest 50% of edges are set to connected, and the smallest 50% set to disconnected. For the diffusion (which are natively sparse) we just threshold edges that are present to connected, and edges that are not present to disconnected (threshold about 0). 
@@ -474,10 +445,6 @@ fmriu.plot.plot_graph(dwi_block, title = "Blocked DWI Connectome", xlabel = "Hem
 ```
 
 ## Difference in Ipsilateral vs. Contralateral Connectivity
-
-### Comparing Distributions of Functional and Diffusion $\hat{\delta}$ (one p-value total)
-
-Here, we take each functional and diffusion connectome individually, and compute the parameters of our block model for each connectome. We collect all of the ipsi-lateral probabilities as our first sample, and the contra-lateral probabilities as our second sample:
 
 #### Diffusion
 
@@ -540,6 +507,10 @@ fmri.delta = abs(ips.phat - contr.phat)
 fmri.mu = mean(fmri.delta)
 fmri.var = model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)
 ```
+
+### Comparing Distributions of Functional and Diffusion $\hat{\delta}$ (one p-value total)
+
+Here, we take each functional and diffusion connectome individually, and compute the parameters of our block model for each connectome. The question we seek to first answer is, given a large number of observations of $\hat{\delta}$, can we detect a difference in ipsi-lateral vs contra-lateral connectivity in the diffusion connectomes compared to the functional connectomes?
 
 We might want to visualize the distribution of $\delta = |\hat{p}_{contra} - \hat{p}_{ipsi}|$ under the analytical model and compare to our empirical model for functional and diffusion:
 
@@ -610,9 +581,9 @@ t.test(dwi.delta, fmri.delta, alternative="greater", var.equal=FALSE)
 
 which shows that with $p < 2.2 \times 10^{-16}$, the difference in connectivity ipsi-laterally vs. contra-laterally in diffusion connectomes exceeds the difference in connectivity ipsi-laterally vs contra-laterally in functional connectomes.
 
-### Comparing p-value per subject of Functional vs Diffusion $\hat{\delta}$ (one p-value total)
+### Comparing p-value per subject of Functional vs Diffusion $\hat{\delta}$ (one p-value per pair)
 
-Below, we compute a $p-$value given 2 graphs, 1 functional and 1 diffusion, from the same subject, where we take the cartesian product of the functional connectomes with the diffusion connectomes for each subject. For example, if we had $2$ functional connectomes and $2$ diffusion connectomes, we would end up with $4$ $p-$values, with the first functional connectome $\delta$ compared with the first diffusion connectome $\delta$ ($11$ comparison), and so on for $12$ (first functional connectome with second diffusion connectome), $21$, $22$. We plot a distribution of the $p-$values for each dataset:
+Below, we compute a $p-$value given 2 graphs, 1 functional and 1 diffusion, from the same subject, where we take the cartesian product of the functional connectomes with the diffusion connectomes for each subject. For example, if we had $2$ functional connectomes and $2$ diffusion connectomes, we would end up with $4$ $p-$values, with the first functional connectome $\delta$ compared with the first diffusion connectome $\delta$ ($11$ comparison), and so on for $12$ (first functional connectome with second diffusion connectome), $21$, $22$.  The question we seek to first answer is, given a large number of observations of $\hat{\delta}$, can we detect a difference in ipsi-lateral vs contra-lateral connectivity in the functional connectomes compared to the diffusion connectomes?
 
 ```{r}
 # find the common datasets
@@ -660,10 +631,10 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   ggtitle(TeX(sprintf('Hemispheric Inter-Modality, %.2f percent have $p < .05$', 100*sum(per.p < .05)/length(per.p)))) +
   xlab('Dataset') +
   ylab('p-value') +
-  theme(axis.text.x = element_text(angle=45))
+  theme(axis.text.x = element_text(angle=45), legend.position=NaN)
 ```
 
-As we can see, even at just the $2-$graph level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion vs. functional connectomes is significant in most connectomes ($99.64\%$). 
+As we can see, even at just the $2-$graph level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion connectomes exceeds that of the functional connectomes and is significant in most connectomes at $\alpha=0.05$. 
 
 ##### Example of subject with $p > .05$
 
@@ -709,7 +680,7 @@ ggplot(batch.dat, aes(x=diff, y=p, color=dataset, group=dataset, shape=dataset))
 
 ### Aggregated
 
-Here, we aggregate all of the edge weights ipsilaterally and contralaterally, along with the number of edges this information is aggregated over for each connection type. We feed this into a simple t-test with the appropriate assumptions (unequal variance, goal is to test for ipsilateral connectivity exceeding contralateral connectivity):
+Here, we again perform a test on 2 graphs, except here the graphs used are the average functional and diffusion connectomes (the megameans). We feed this into a simple t-test with the appropriate assumptions (unequal variance, goal is to test for ipsilateral connectivity exceeding contralateral connectivity):
 
 ```{r}
 fips = c(fmri_thresh[group1, group1], fmri_thresh[group2, group2])
