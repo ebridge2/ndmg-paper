@@ -481,11 +481,13 @@ dwi.var = model.var(mean(ips.phat), ne) + model.var(mean(contr.phat), ne)
 #### Functional
 
 ```{r}
-fmri.dsets = c('BNU1', 'BNU2', 'BNU3', 'HNU1', 'IBATRT', 'IPCAS1', 'IPCAS2', 'IPCAS5', 'IPCAS6', 'IPCAS8', 'MRN1', 'NYU1', 'SWU1', 'SWU2', 'SWU3', 'SWU4', 'UWM', 'XHCUMS')
+fmri.dsets = c('BNU1', 'BNU2', 'BNU3', 'HNU1', 'IBATRT', 'IPCAS1', 'IPCAS2', 'IPCAS5', 'IPCAS6', 'IPCAS8', 'MRN1', 'NYU1',
+               'SWU1', 'SWU2', 'SWU3', 'SWU4', 'UWM', 'XHCUMS')
 fmri.atlas = 'desikan-2mm'
 fmri.basepath = '/data/fmri/ranked/edgelists/'
 
-graphobj = fmriu.io.collection.open_graphs(basepath = fmri.basepath, atlases = fmri.atlas, datasets=fmri.dsets, fmt='edgelist', rtype = 'array')
+graphobj = fmriu.io.collection.open_graphs(basepath = fmri.basepath, atlases = fmri.atlas,
+                                           datasets=fmri.dsets, fmt='edgelist', rtype = 'array')
 fmri.graphs = graphobj$graphs
 fmri.datasets = graphobj$dataset
 fmri.subjects = graphobj$subjects
@@ -635,6 +637,22 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
 ```
 
 As we can see, even at just the $2-$graph level, the difference in ipsi-lateral vs. contra-lateral connectivity in the diffusion connectomes exceeds that of the functional connectomes and is significant in most connectomes at $\alpha=0.05$. 
+
+We can instead visualize this as density estimates:
+
+```{r}
+vline = data.frame(x=.05, type="sig")
+ggplot(data=p.dat, aes(p, group=dataset, color=dataset)) +
+  geom_line(stat="density", size=1.5, adjust=1.5) +
+  scale_x_log10(limits=c(.005, 1)) +
+  geom_vline(data=vline, aes(xintercept = x, linetype=type)) +
+  scale_color_discrete(name="Dataset") +
+  scale_linetype_manual(values=c("dashed"), name="Cutoff", breaks=c("sig"), labels=lapply(c("$\\alpha = 0.05$"), TeX)) +
+  xlab(TeX('$log(p)$')) +
+  ylab("Density") +
+  theme(panel.background = element_rect(fill = '#ffffff')) + 
+  ggtitle(TeX(sprintf('Hemispheric Inter-Modality, %.2f percent have $p < .05$', 100*sum(p.dat$p < .05)/length(p.dat$p))))
+```
 
 ##### Example of subject with $p > .05$
 

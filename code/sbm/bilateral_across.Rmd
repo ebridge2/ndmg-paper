@@ -423,7 +423,7 @@ fmriu.plot.plot_graph(dwi_thresh, include_diag = TRUE, title = "Mean Thresholded
 
 ```{r}
 group1 = c()
-group2 = c()
+group2 = c() 
 # loop over all possible edges to get the indices we want to examine
 for (i in 1:70) {
   for (j in 1:70) {
@@ -462,7 +462,7 @@ ne = 1225
 bi.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 nbi.phat = array(NaN, dim=c(dim(dwi.graphs)[1]))
 dwi.per.var = array(NaN, dim=c(dim(dwi.graphs)[1]))
-for (i in 1:dim(dwi.graphs)[1]) {
+for (i in 1:dim(dwi.graphs)[1]) { 
   gr = thresh_matrix(dwi.graphs[i,,], thresh=0)
   bi = c(gr[group1])
   nbi = c(gr[group2])
@@ -506,7 +506,7 @@ fmri.var = model.var(mean(bi.phat), ne) + model.var(mean(nbi.phat), ne)
 ```
 
 We might want to visualize the distribution of $\delta = \hat{p}_{bi} - \hat{p}_{non-bi}$ under the analytical model and compare to our empirical model for functional and diffusion:
-
+ 
 ```{r}
 ne = 1225
 # density estimates of the two populations of delta
@@ -532,7 +532,7 @@ ggplot(dat=dwi.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution,
 ```{r}
 n_diff = length(dwi.distr.emp.mod$x)
 fmri.dat = data.frame(x = c(fmri.distr.emp.mod$x, fmri.distr.emp.mod$x), y = c(fmri.distr.emp.mod$y, fmri.distr.ana),
-                      distribution=c(rep("empirical", n_diff), rep("analytical", n_diff)))
+                      distribution=c(rep("empirical", n_diff), rep("analytical", n_diff))) 
 fmri.dat$distribution = factor(fmri.dat$distribution)
 
 ggplot(dat=fmri.dat, aes(x=x, y=y, ymax=y, fill=distribution, color=distribution, group=distribution)) +
@@ -628,6 +628,22 @@ ggplot(data=p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
 ```
 
 As we can see, even at just the $2-$graph level, the difference in bi-lateral vs. non bi-lateral connectivity in the functional vs. diffusion connectomes is significant in most connectome pairs at $\alpha=0.05$. 
+
+We can instead visualize this as density estimates:
+
+```{r}
+vline = data.frame(x=.05, type="sig")
+ggplot(data=p.dat, aes(p, group=dataset, color=dataset)) +
+  geom_line(stat="density", size=1.5, adjust=1.5) +
+  scale_x_log10(limits=c(.005, 1)) +
+  geom_vline(data=vline, aes(xintercept = x, linetype=type)) +
+  scale_color_discrete(name="Dataset") +
+  scale_linetype_manual(values=c("dashed"), name="Cutoff", breaks=c("sig"), labels=lapply(c("$\\alpha = 0.05$"), TeX)) +
+  xlab(TeX('$log(p)$')) +
+  ylab("Density") +
+  theme(panel.background = element_rect(fill = '#ffffff')) + 
+  ggtitle(TeX(sprintf('Bilateral Inter-Modality, %.2f percent have $p < .05$', 100*sum(p.dat$p < .05)/length(p.dat$p))))
+```
 
 ##### Example of subject with $p > .05$
 

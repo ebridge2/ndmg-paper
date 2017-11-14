@@ -533,7 +533,7 @@ which as we can see, indicates a significant difference in ipsi-lateral connecti
 
 Below, we look at the distribution of our $p-$values wehre we estimate one p-value per graph:
 ```{r}
-dwi.p.dat = data.frame(p=dwi.per.p, dataset = dwi.datasets)
+dwi.p.dat = data.frame(p=dwi.per.p, dataset = dwi.datasets, modality='DWI')
 dwi.p.dat$dataset = factor(dwi.p.dat$dataset)
 ggplot(data=dwi.p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   geom_jitter() +
@@ -584,7 +584,7 @@ similar to the diffusion connectomes, the functional connectomes again exhibit a
 
 Below, we look at the distribution of our $p-$values wehre we estimate one p-value per graph:
 ```{r}
-fmri.p.dat = data.frame(p=fmri.per.p, dataset = fmri.datasets)
+fmri.p.dat = data.frame(p=fmri.per.p, dataset = fmri.datasets, modality='fMRI')
 fmri.p.dat$dataset = factor(fmri.p.dat$dataset)
 ggplot(data=fmri.p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
   geom_jitter() +
@@ -596,6 +596,28 @@ ggplot(data=fmri.p.dat, aes(x=dataset, y=p, color=dataset, group=dataset)) +
 ```
 
 As we can see, with just $1$ graph, we do not have nearly the confidence that the ipsi-lateral connectivity exceeds the contra-lateral connectivity that we did with the diffusion graphs. With just one graph, we can identify a significant difference in ipsi-lateral vs. contra-lateral connectivity for the functional connectomes in just $6.4\%$ of the graphs at $\alpha = .05$.
+
+We can compare the results from the fMRI and DWI simultaneously as appropriately colored density estimates to show the difference in the $p$-values:
+
+```{r}
+dual.p.dat = rbind(dwi.p.dat, fmri.p.dat)
+vline = data.frame(x=.05, type="sig")
+labs = lapply(levels(dual.p.dat$modality), function(mod) {
+  pmod= dual.p.dat[dual.p.dat$modality == mod, ]$p
+  TeX(paste(sprintf('%s: %.2f', mod, 100*sum(pmod < .05)/length(pmod)),  '% < $\\alpha$', sep=""))
+})
+dual.p.dat$grouping = paste(dual.p.dat$dataset, dual.p.dat$modality)  # for the datasets that are shared
+ggplot(data=dual.p.dat, aes(p, group=grouping, color=modality)) +
+  geom_line(stat="density", size=1, adjust=1.5) +
+  scale_x_log10(limits=c(.005, 1)) +
+  geom_vline(data=vline, aes(xintercept = x, linetype=type)) +
+  scale_color_discrete(name="Modality", breaks=levels(dual.p.dat$modality)) +
+  scale_linetype_manual(values=c("dashed"), name="Cutoff", breaks=c("sig"), labels=lapply(c("$\\alpha = 0.05$"), TeX)) +
+  xlab(TeX('$log(p)$')) +
+  ylab("Density") +
+  theme(panel.background = element_rect(fill = '#ffffff')) + 
+  ggtitle("Hemispheric Intra-Modality")
+```
 
 ### Aggregated 
 
