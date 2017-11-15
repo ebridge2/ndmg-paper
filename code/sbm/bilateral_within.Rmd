@@ -1,5 +1,5 @@
 ---
-title: "Using a Generalized SBM to quantify differences in Bi-Lateral Connectivity within DWI and fMRI Connectome Populations"
+title: "Using a Structured Independent Edge Model to quantify differences in Bi-Lateral Connectivity within DWI and fMRI Connectome Populations"
 author: "Eric Bridgeford"
 date: "September 29, 2017"
 header-includes:

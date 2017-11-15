@@ -1,5 +1,5 @@
 ---
-title: "Using a Generalized SBM to quantify the difference between DTI and fMRI Connectome Hemispheric Connectivity"
+title: "Using a Structured Independent Edge Model to quantify the difference between DTI and fMRI Connectome Hemispheric Connectivity"
 author: "Eric Bridgeford"
 date: "September 29, 2017"
 header-includes:
